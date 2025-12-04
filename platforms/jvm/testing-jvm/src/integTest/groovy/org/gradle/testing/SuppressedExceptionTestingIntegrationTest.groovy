@@ -17,7 +17,6 @@
 package org.gradle.testing
 
 import org.gradle.api.internal.tasks.testing.report.VerifiesGenericTestReportResults
-import org.gradle.api.internal.tasks.testing.report.generic.GenericTestExecutionResult
 import org.gradle.api.tasks.testing.TestResult
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.test.precondition.Requires
@@ -29,11 +28,6 @@ import static org.hamcrest.CoreMatchers.startsWith
 
 @Requires(IntegTestPreconditions.NotEmbeddedExecutor)
 class SuppressedExceptionTestingIntegrationTest extends AbstractIntegrationSpec implements VerifiesGenericTestReportResults {
-    @Override
-    GenericTestExecutionResult.TestFramework getTestFramework() {
-        return GenericTestExecutionResult.TestFramework.JUNIT_JUPITER
-    }
-
     def setup() {
         executer.withRepositoryMirrors()
     }
@@ -86,7 +80,7 @@ class SuppressedExceptionTestingIntegrationTest extends AbstractIntegrationSpec 
 
         then:
         def result = resultsFor()
-        result.testPathPreNormalized(":TestCaseWithThrowingBeforeAllAndAfterAllCallbacks:initializationError").onlyRoot()
+        result.testPath(":TestCaseWithThrowingBeforeAllAndAfterAllCallbacks:initializationError").onlyRoot()
             .assertFailureMessages(allOf(
                 startsWith('java.lang.IllegalStateException: beforeAll callback'),
                 containsString('Suppressed: CustomException: afterAll callback')

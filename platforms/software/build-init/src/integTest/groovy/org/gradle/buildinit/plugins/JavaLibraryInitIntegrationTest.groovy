@@ -17,7 +17,6 @@
 package org.gradle.buildinit.plugins
 
 import org.gradle.api.JavaVersion
-import org.gradle.api.internal.tasks.testing.report.generic.GenericTestExecutionResult
 import org.gradle.buildinit.plugins.fixtures.ScriptDslFixture
 import org.gradle.buildinit.plugins.internal.modifiers.BuildInitDsl
 import org.gradle.buildinit.plugins.internal.modifiers.BuildInitTestFramework
@@ -127,7 +126,7 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
         run("build")
 
         then:
-        assertTestPassed("org.example.LibraryTest", "someLibraryMethod returns true", GenericTestExecutionResult.TestFramework.SPOCK)
+        assertTestPassed("org.example.LibraryTest", "someLibraryMethod returns true")
 
         where:
         scriptDsl << ScriptDslFixture.SCRIPT_DSLS
@@ -150,7 +149,7 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
         run("build")
 
         then:
-        assertTestPassed("org.example.LibraryTest", "someLibraryMethodReturnsTrue", GenericTestExecutionResult.TestFramework.TEST_NG)
+        assertTestPassed("org.example.LibraryTest", "someLibraryMethodReturnsTrue")
 
         where:
         scriptDsl << ScriptDslFixture.SCRIPT_DSLS
@@ -181,7 +180,6 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
 
     def "creates sample source with package and #testFramework and #scriptDsl build scripts"() {
         when:
-        resultsTestFramework(testFramework as BuildInitTestFramework)
         run('init', '--type', 'java-library', '--test-framework', testFramework.id, '--package', 'my.lib', '--dsl', scriptDsl.id, '--java-version', JavaVersion.current().majorVersion)
 
         then:
@@ -208,7 +206,6 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
         def dslFixture = dslFixtureFor(scriptDsl as BuildInitDsl)
 
         when:
-        resultsTestFramework(testFramework as BuildInitTestFramework)
         run('init', '--type', 'java-library', '--test-framework', testFramework.id, '--package', 'my.lib', '--dsl', scriptDsl.id, '--incubating', '--java-version', JavaVersion.current().majorVersion)
 
         then:
@@ -247,7 +244,7 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
         run("build")
 
         then:
-        assertTestPassed("my.lib.LibraryTest", "someLibraryMethod returns true", GenericTestExecutionResult.TestFramework.SPOCK)
+        assertTestPassed("my.lib.LibraryTest", "someLibraryMethod returns true")
 
         where:
         scriptDsl << ScriptDslFixture.SCRIPT_DSLS
@@ -273,7 +270,7 @@ class JavaLibraryInitIntegrationTest extends AbstractJvmLibraryInitIntegrationSp
         run("build")
 
         then:
-        assertTestPassed("my.lib.LibraryTest", "someLibraryMethod returns true", GenericTestExecutionResult.TestFramework.SPOCK)
+        assertTestPassed("my.lib.LibraryTest", "someLibraryMethod returns true")
 
         where:
         scriptDsl << ScriptDslFixture.SCRIPT_DSLS
