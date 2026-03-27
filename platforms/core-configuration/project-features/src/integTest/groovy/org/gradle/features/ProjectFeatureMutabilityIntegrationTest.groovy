@@ -24,6 +24,7 @@ import org.gradle.features.internal.ProjectFeatureFixture
 import org.gradle.test.fixtures.dsl.GradleDsl
 
 @PolyglotDslTest
+@SkipDsl(dsl = GradleDsl.GROOVY, because = "DCL nested model accessors like foo { } are not supported in Groovy")
 class ProjectFeatureMutabilityIntegrationTest extends AbstractIntegrationSpec
     implements ProjectFeatureFixture, PolyglotTestFixture {
 
