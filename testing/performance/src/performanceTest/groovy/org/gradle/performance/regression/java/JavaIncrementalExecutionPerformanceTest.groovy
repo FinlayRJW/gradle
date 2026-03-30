@@ -130,6 +130,7 @@ class JavaIncrementalExecutionPerformanceTest extends AbstractIncrementalExecuti
         given:
         runner.tasksToRun = ['assemble']
         runner.args += ["-Dorg.gradle.parallel=$parallel"]
+        enableConfigurationCaching(true)
 
         when:
         def result = runner.run()
@@ -153,6 +154,7 @@ class JavaIncrementalExecutionPerformanceTest extends AbstractIncrementalExecuti
         runner.addBuildMutator { invocationSettings ->
             new ClearBuildCacheMutator(invocationSettings.getGradleUserHome(), AbstractScheduledMutator.Schedule.SCENARIO)
         }
+        enableConfigurationCaching(true)
 
         when:
         def result = runner.run()
