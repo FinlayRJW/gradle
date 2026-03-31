@@ -21,6 +21,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.UntrackedTask
+import org.gradle.api.tasks.options.Option
 import org.gradle.util.GradleVersion
 import org.gradle.util.internal.VersionNumber
 import org.jetbrains.annotations.VisibleForTesting
@@ -40,6 +41,13 @@ import org.jsoup.Jsoup
 abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
 
     @get:Internal
+    @get:Option(
+        option = "include-pre-releases",
+        description = "Include alpha and beta versions in the update. By default, only stable and RC versions are considered."
+    )
+    abstract val includePreReleases: Property<Boolean>
+
+    @get:Internal
     abstract val currentGradleVersion: Property<GradleVersion>
 
     @get:Internal
@@ -49,53 +57,54 @@ abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
     abstract val compatibilityDocFile: RegularFileProperty
 
     @TaskAction
-    fun fetch() =
-        fetchLatestAgpVersions().let { fetchedVersions ->
-            updateProperties(fetchedVersions)
-            updateCompatibilityDoc(fetchedVersions.latests)
-        }
+    fun fetch() {
+        val includePreReleases = includePreReleases.get()
+        val existingProperties = readExistingProperties()
+        val currentLatests = existingProperties.getProperty("latests")
+            ?.split(",")
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
 
-    private
-    data class FetchedVersions(
-        val latests: List<String>,
-        val nightlyBuildId: String,
-        val nightlyVersion: String,
-        val aapt2Versions: List<String>,
-        val buildToolsVersion: String
-    )
-
-    private
-    fun fetchLatestAgpVersions(): FetchedVersions {
-        val latests = fetchLatests(
-            currentGradleVersion.get(),
-            minimumSupported.orNull,
+        val allVersions = fetchVersionsFromMavenMetadata(
             "https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml"
         )
-        val nightlyBuildId = fetchNightlyBuildId(
-            "https://androidx.dev/studio/builds"
+        val latests = selectVersionsFrom(
+            currentGradleVersion.get(),
+            minimumSupported.orNull?.let { VersionNumber.parse(it) },
+            allVersions,
+            includePreReleases,
+            currentLatests
         )
-        val nightlyVersion = fetchNightlyVersion(
-            "https://androidx.dev/studio/builds/$nightlyBuildId/artifacts/artifacts/repository/com/android/application/com.android.application.gradle.plugin/maven-metadata.xml"
-        )
-        val aapt2Versions = fetchAapt2Versions(
-            latests.toSet().plus(nightlyVersion),
-            "https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/maven-metadata.xml"
-        )
+
         val buildToolsVersion = fetchBuildToolsVersion(
             "https://developer.android.com/tools/releases/build-tools"
         )
-        return FetchedVersions(latests, nightlyBuildId, nightlyVersion, aapt2Versions, buildToolsVersion)
-    }
 
-    private
-    fun updateProperties(fetchedVersions: FetchedVersions) =
-        updateProperties {
-            setProperty("latests", fetchedVersions.latests.joinToString(","))
-            setProperty("nightlyBuildId", fetchedVersions.nightlyBuildId)
-            setProperty("nightlyVersion", fetchedVersions.nightlyVersion)
-            setProperty("aapt2Versions", fetchedVersions.aapt2Versions.joinToString(","))
-            setProperty("buildToolsVersion", fetchedVersions.buildToolsVersion)
+        val (nightlyBuildId, nightlyVersion) = if (includePreReleases) {
+            val buildId = fetchNightlyBuildId("https://androidx.dev/studio/builds")
+            val version = fetchNightlyVersion(
+                "https://androidx.dev/studio/builds/$buildId/artifacts/artifacts/repository/com/android/application/com.android.application.gradle.plugin/maven-metadata.xml"
+            )
+            buildId to version
+        } else {
+            existingProperties.getProperty("nightlyBuildId") to existingProperties.getProperty("nightlyVersion")
         }
+
+        val aapt2Versions = fetchAapt2Versions(
+            latests.toSet() + listOfNotNull(nightlyVersion),
+            "https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/maven-metadata.xml"
+        )
+
+        updateProperties {
+            setProperty("latests", latests.joinToString(","))
+            nightlyBuildId?.let { setProperty("nightlyBuildId", it) }
+            nightlyVersion?.let { setProperty("nightlyVersion", it) }
+            setProperty("aapt2Versions", aapt2Versions.joinToString(","))
+            setProperty("buildToolsVersion", buildToolsVersion)
+        }
+
+        updateCompatibilityDoc(latests)
+    }
 
     private
     fun updateCompatibilityDoc(latestAgpVersions: List<String>) =
@@ -113,11 +122,6 @@ abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
     private
     val VersionNumber.minorBaseVersion: String
         get() = "$major.$minor"
-
-    private
-    fun fetchLatests(currentGradleVersion: GradleVersion, minimumSupported: String?, mavenMetadataUrl: String): List<String> {
-        return selectVersionsFrom(currentGradleVersion, minimumSupported?.let { VersionNumber.parse(it) }, fetchVersionsFromMavenMetadata(mavenMetadataUrl))
-    }
 
     private
     fun fetchAapt2Versions(agpVersions: Set<String>, mavenMetadataUrl: String): List<String> {
@@ -153,17 +157,25 @@ abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
             ?: error("Couldn't find buildToolsVersion on $buildToolsUrl")
 
     companion object {
-
         @VisibleForTesting
         @JvmStatic
-        fun selectVersionsFrom(currentGradleVersion: GradleVersion, minimumSupported: VersionNumber?, allVersions: List<String>): List<String> {
-            val allMinorLatests = allVersions.map { version ->
-                VersionNumber.parse(version)
-            }.sorted().groupBy { version ->
-                VersionNumber.version(version.major, version.minor)
-            }.map { (_, versions) ->
-                versions.last()
+        @JvmOverloads
+        fun selectVersionsFrom(
+            currentGradleVersion: GradleVersion,
+            minimumSupported: VersionNumber?,
+            allVersions: List<String>,
+            includePreReleases: Boolean = true,
+            currentLatests: List<String> = emptyList()
+        ): List<String> {
+            val parsedVersions = allVersions.map { VersionNumber.parse(it) }
+            val allMinorLatests = parsedVersions.latestPerMinor()
+
+            val candidates = if (includePreReleases) {
+                allMinorLatests
+            } else {
+                parsedVersions.filter { it.isStableOrRc }.latestPerMinor()
             }
+
             val gradleMajor = VersionNumber.version(currentGradleVersion.majorVersion)
             val minimumFallback = when {
 
@@ -178,9 +190,46 @@ abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
                     allMinorLatests.last { it.major == gradlePreviousMajor.major && it.isStable }
                 }
             }
-            return allMinorLatests
-                .applyMinimumSupported(minimumSupported ?: minimumFallback)
-                .map { it.toString() }
+
+            val effectiveMinimum = minimumSupported ?: minimumFallback
+            val filteredCandidates = candidates.applyMinimumSupported(effectiveMinimum)
+
+            if (includePreReleases) {
+                return filteredCandidates.map { it.toString() }
+            }
+
+            // Merge with existing latests: preserve existing entries that are not superseded
+            val existingByMinor = currentLatests.associate { version ->
+                val parsed = VersionNumber.parse(version)
+                VersionNumber.version(parsed.major, parsed.minor) to parsed
+            }
+            val candidateByMinor = filteredCandidates.associateBy { version ->
+                VersionNumber.version(version.major, version.minor)
+            }
+
+            val allMinorSeriesInMaven = parsedVersions
+                .map { VersionNumber.version(it.major, it.minor) }
+                .toSet()
+
+            val allMinors = (existingByMinor.keys + candidateByMinor.keys)
+                .filter { it.baseVersion >= effectiveMinimum }
+                .sorted()
+                .distinct()
+
+            return allMinors.mapNotNull { minor ->
+                val candidate = candidateByMinor[minor]
+                val existing = existingByMinor[minor]
+
+                when {
+                    // Stale: minor series no longer in Maven
+                    minor !in allMinorSeriesInMaven -> null
+                    // Candidate available and better than or equal to existing
+                    candidate != null && (existing == null || candidate >= existing) -> candidate
+                    // Existing is better (e.g. an alpha from a widened run, no stable/RC yet)
+                    existing != null -> existing
+                    else -> null
+                }
+            }.map { it.toString() }
         }
 
         private fun validateMinimumSupported(minimumSupported: VersionNumber?, minimumMinimum: VersionNumber) {
@@ -194,6 +243,15 @@ abstract class UpdateAgpVersions : AbstractVersionsUpdateTask() {
         private
         val VersionNumber.isStable: Boolean
             get() = qualifier == null
+
+        private
+        val VersionNumber.isStableOrRc: Boolean
+            get() = qualifier == null || qualifier?.lowercase()?.startsWith("rc") == true
+
+        private
+        fun List<VersionNumber>.latestPerMinor(): List<VersionNumber> = sorted()
+            .groupBy { VersionNumber.version(it.major, it.minor) }
+            .map { (_, versions) -> versions.last() }
 
         private
         fun List<VersionNumber>.applyMinimumSupported(minimumSupported: VersionNumber?): List<VersionNumber> =

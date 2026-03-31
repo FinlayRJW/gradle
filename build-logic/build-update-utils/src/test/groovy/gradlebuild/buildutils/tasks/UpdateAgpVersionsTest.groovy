@@ -22,7 +22,7 @@ import spock.lang.Specification
 
 class UpdateAgpVersionsTest extends Specification {
 
-    def "selects matching gradle major versions when rc available (minimumSupported=#minimumSupported)"() {
+    def "selects matching gradle major versions when rc available"() {
         given:
         def gradleVersion = GradleVersion.version("9.2")
         def allVersions = [
@@ -88,6 +88,139 @@ class UpdateAgpVersionsTest extends Specification {
         VersionNumber.parse("8.11") | ["8.11.0-rc01", "8.12.0-beta01", "8.13.0-alpha01", "9.0.0-alpha11"]
         VersionNumber.parse("8.9")  | ["8.9.1", "8.10.1", "8.11.0-rc01", "8.12.0-beta01", "8.13.0-alpha01", "9.0.0-alpha11"]
     }
+
+    // --- Default mode (stable/RC only) tests ---
+
+    def "default mode selects only stable and RC versions"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0-alpha01", "9.7.0-beta01", "9.7.0-rc01", "9.7.0", "9.7.1",
+            "9.8.0-alpha01", "9.8.0-beta01", "9.8.0-rc01", "9.8.0", "9.8.1",
+            "9.9.0-alpha01", "9.9.0-beta01", "9.9.0-rc01",
+            "9.10.0-alpha01", "9.10.0-beta01",
+            "9.11.0-alpha01",
+        ].shuffled()
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, [])
+
+        then:
+        selected == ["9.7.1", "9.8.1", "9.9.0-rc01"]
+    }
+
+    def "default mode preserves existing alpha when no stable or RC available for that minor"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0", "9.7.1",
+            "9.8.0-alpha01", "9.8.0-alpha05",
+        ].shuffled()
+        def currentLatests = ["9.7.1", "9.8.0-alpha05"]
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, currentLatests)
+
+        then:
+        selected == ["9.7.1", "9.8.0-alpha05"]
+    }
+
+    def "default mode upgrades existing alpha to RC"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0", "9.7.1",
+            "9.8.0-alpha01", "9.8.0-alpha05", "9.8.0-rc01",
+        ].shuffled()
+        def currentLatests = ["9.7.1", "9.8.0-alpha05"]
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, currentLatests)
+
+        then:
+        selected == ["9.7.1", "9.8.0-rc01"]
+    }
+
+    def "default mode upgrades existing RC to stable"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0", "9.7.1",
+            "9.8.0-alpha01", "9.8.0-rc01", "9.8.0",
+        ].shuffled()
+        def currentLatests = ["9.7.1", "9.8.0-rc01"]
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, currentLatests)
+
+        then:
+        selected == ["9.7.1", "9.8.0"]
+    }
+
+    def "default mode removes stale entry no longer in Maven"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.8.0", "9.8.1",
+        ]
+        def currentLatests = ["9.7.1", "9.8.0"]
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, currentLatests)
+
+        then:
+        selected == ["9.8.1"]
+    }
+
+    def "default mode with empty current latests bootstraps from stable and RC only"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.0.0", "9.0.1",
+            "9.1.0-alpha01", "9.1.0-rc01",
+            "9.2.0-alpha01",
+        ].shuffled()
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, [])
+
+        then:
+        selected == ["9.0.1", "9.1.0-rc01"]
+    }
+
+    def "widened mode includes all stages (backwards compatible)"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0", "9.7.1",
+            "9.8.0-alpha01", "9.8.0-beta01", "9.8.0-rc01",
+            "9.9.0-alpha01",
+        ].shuffled()
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, true, [])
+
+        then:
+        selected == ["9.7.1", "9.8.0-rc01", "9.9.0-alpha01"]
+    }
+
+    def "default mode adds new minor series with stable version"() {
+        given:
+        def gradleVersion = GradleVersion.version("9.2")
+        def allVersions = [
+            "9.7.0", "9.7.1",
+            "9.8.0",
+        ].shuffled()
+        def currentLatests = ["9.7.1"]
+
+        when:
+        def selected = UpdateAgpVersions.selectVersionsFrom(gradleVersion, null, allVersions, false, currentLatests)
+
+        then:
+        selected == ["9.7.1", "9.8.0"]
+    }
+
+    // --- Original tests (pre-release inclusive, backwards compatible) ---
 
     def "fail when minimumSupported higher than gradle major when matching gradle major stable or rc available"() {
         given:

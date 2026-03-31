@@ -29,6 +29,7 @@ tasks.register<UpdateReleasedVersions>("updateReleasedVersions") {
 
 val updateAgpVersions = tasks.register<UpdateAgpVersions>("updateAgpVersions") {
     comment = " Generated - Update by running `./gradlew updateAgpVersions`"
+    includePreReleases.convention(false)
     currentGradleVersion = gradleModule.identity.version
     propertiesFile = layout.projectDirectory.file("gradle/dependency-management/agp-versions.properties")
     compatibilityDocFile = layout.projectDirectory.file("platforms/documentation/docs/src/docs/userguide/releases/compatibility.adoc")

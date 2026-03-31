@@ -80,6 +80,15 @@ abstract class AbstractVersionsUpdateTask : DefaultTask() {
             }
 
     protected
+    fun readExistingProperties(): Properties =
+        Properties().apply {
+            val file = propertiesFile.get().asFile
+            if (file.exists()) {
+                file.inputStream().use { load(it) }
+            }
+        }
+
+    protected
     fun updateProperties(populateProperties: Properties.() -> Unit) =
         PropertiesUtils.store(
             Properties().apply(populateProperties),
