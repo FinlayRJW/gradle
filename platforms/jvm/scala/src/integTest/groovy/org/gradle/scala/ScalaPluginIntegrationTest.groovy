@@ -105,7 +105,7 @@ class ScalaPluginIntegrationTest extends MultiVersionIntegrationSpec {
                 apply plugin: 'scala'
                 dependencies {
                     implementation("${scalaDependency(version.toString())}")
-                    implementation(project(":java").sourceSets.main.output)
+                    implementation(project.project(":java").sourceSets.main.output)
                 }
             }
         """
@@ -270,6 +270,42 @@ class ScalaPluginIntegrationTest extends MultiVersionIntegrationSpec {
         def matcher = log4jOutput =~ versionPattern
         matcher.find()
         Integer.valueOf(matcher.group(1)) >= 16
+    }
+
+    @Issue("https://github.com/gradle/gradle/issues/6854")
+    def "dependencies task does not show FAILED entries for incremental Scala analysis configurations"() {
+        given:
+        createDirs("producer", "consumer")
+        settingsFile << """
+            include 'producer', 'consumer'
+        """
+        buildFile << """
+            allprojects {
+                ${mavenCentralRepository()}
+            }
+            project(":producer") {
+                apply plugin: 'scala'
+                dependencies {
+                    implementation "${scalaDependency(version.toString())}"
+                }
+            }
+            project(":consumer") {
+                apply plugin: 'scala'
+                dependencies {
+                    implementation "${scalaDependency(version.toString())}"
+                    implementation project(":producer")
+                    implementation "org.apache.commons:commons-lang3:3.12.0"
+                }
+            }
+        """
+        file("producer/src/main/scala/Producer.scala") << 'class Producer'
+        file("consumer/src/main/scala/Consumer.scala") << 'class Consumer extends Producer'
+
+        when:
+        succeeds(":consumer:dependencies")
+
+        then:
+        !output.contains("FAILED")
     }
 
     @Requires(IntegTestPreconditions.NotNoDaemonExecutor)

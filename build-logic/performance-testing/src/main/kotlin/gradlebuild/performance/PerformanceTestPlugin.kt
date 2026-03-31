@@ -245,6 +245,11 @@ class PerformanceTestPlugin : Plugin<Project> {
         }
     }
 
+    /**
+     * Uses the Test task infrastructure to process all available tests without executing them.
+     *
+     * @see org.gradle.performance.annotations.RunForExtension
+     */
     private
     fun Project.createGeneratePerformanceDefinitionJsonTask(name: String, performanceSourceSet: SourceSet, outputJson: File) =
         tasks.register<Test>(name) {
@@ -334,6 +339,7 @@ class PerformanceTestPlugin : Plugin<Project> {
 
         buildCommitDistribution.configure {
             dependsOn(determineBaselines)
+            repoRoot = project.repoRoot()
             releasedVersionsFile = project.releasedVersionsFile()
             commitBaseline = determineBaselines.flatMap { it.determinedBaselines }
             commitDistribution = buildCommitDistributionsDir.zip(commitBaseline) { dir, version -> dir.file("gradle-$version.zip") }
@@ -469,7 +475,7 @@ class PerformanceTestExtension(
             useJUnitPlatform()
             // We need 5G of heap to parse large JFR recordings when generating flamegraphs.
             // If we drop JFR as profiler and switch to something else, we can reduce the memory.
-            jvmArgs("-Xmx5g", "-XX:+HeapDumpOnOutOfMemoryError")
+            jvmArgs("-Xmx8g", "-XX:+HeapDumpOnOutOfMemoryError")
             if (project.performanceTestVerbose.isPresent) {
                 testLogging.showStandardStreams = true
             }
@@ -514,6 +520,7 @@ class PerformanceTestExtension(
             }
             destinationDirectory = project.layout.buildDirectory
             archiveFileName = "test-results-${junitXmlDir.name}.zip"
+            isZip64 = true
         }
 }
 
