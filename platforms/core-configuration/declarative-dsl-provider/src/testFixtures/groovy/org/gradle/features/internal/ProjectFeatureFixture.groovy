@@ -399,7 +399,7 @@ trait ProjectFeatureFixture extends ProjectTypeFixture {
 
     PluginBuilder withProjectFeaturePluginThatBindsToMultipleTargets() {
         def projectTypeDefinition = new ProjectTypeDefinitionWithMultipleNestedBindingLocations()
-        def projectType = new ProjectTypePluginClassBuilder(projectTypeDefinition)
+        def projectType = new ProjectTypePluginClassBuilder(projectTypeDefinition).withUnsafeApplyAction()
         def projectFeatureDefinition = new ProjectFeatureDefinitionClassBuilder()
         def projectFeature = new ProjectFeaturePluginThatBindsMultipleFeaturesToTheSameName(projectFeatureDefinition, "${projectTypeDefinition.publicTypeClassName}.Bar")
             .bindingTypeClassName("${projectTypeDefinition.fullyQualifiedPublicTypeClassName}.Foo")

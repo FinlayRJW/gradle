@@ -28,6 +28,7 @@ import org.gradle.features.binding.BuildModel
 import org.gradle.features.binding.Definition
 import org.gradle.api.internal.plugins.PluginManagerInternal
 import org.gradle.features.binding.ProjectFeatureApplyAction
+import org.gradle.features.registration.BuildModelRegistry
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.ExtensionAware
@@ -65,6 +66,7 @@ class DefaultProjectFeatureApplicatorTest extends Specification {
     def services = Mock(ServiceLookup)
     def typeAnnotationMetadataStore = Mock(TypeAnnotationMetadataStore)
     def projectFeatureRegistry = Mock(ProjectFeatureDeclarations)
+    def buildModelRegistry = Mock(BuildModelRegistry)
     def instantiator = TestUtil.instantiatorFactory().inject(new Services())
     def applicator = instantiator.newInstance(DefaultProjectFeatureApplicator.class, classLoaderScope, objectFactory, internalProblemReporter, services)
     def plugin = Mock(Plugin)
@@ -215,7 +217,8 @@ class DefaultProjectFeatureApplicatorTest extends Specification {
             (ProjectLayout): projectLayout,
             (TaskContainer): taskContainer,
             (ConfigurationContainer): configurationContainer,
-            (TypeAnnotationMetadataStore): typeAnnotationMetadataStore
+            (TypeAnnotationMetadataStore): typeAnnotationMetadataStore,
+            (BuildModelRegistry): buildModelRegistry
         ]
 
         @Override

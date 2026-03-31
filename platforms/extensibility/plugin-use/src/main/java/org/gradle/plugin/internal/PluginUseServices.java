@@ -29,6 +29,8 @@ import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.tasks.properties.InspectionScheme;
 import org.gradle.api.internal.tasks.properties.InspectionSchemeFactory;
 import org.gradle.api.problems.internal.InternalProblems;
+import org.gradle.features.registration.BuildModelRegistry;
+import org.gradle.features.internal.binding.DefaultBuildModelRegistry;
 import org.gradle.initialization.ClassLoaderScopeRegistry;
 import org.gradle.internal.Factory;
 import org.gradle.internal.build.BuildIncluder;
@@ -206,6 +208,11 @@ public class PluginUseServices extends AbstractGradleModuleServices {
         @Provides
         ModelDefaultsApplicator createModelDefaultsApplicator(List<ModelDefaultsHandler> modelDefaultsHandlers) {
             return new DefaultModelDefaultsApplicator(modelDefaultsHandlers);
+        }
+
+        @Provides
+        BuildModelRegistry createBuildModelRegistry(InstantiatorFactory instantiatorFactory, ServiceRegistry services) {
+            return instantiatorFactory.inject(services).newInstance(DefaultBuildModelRegistry.class);
         }
     }
 }

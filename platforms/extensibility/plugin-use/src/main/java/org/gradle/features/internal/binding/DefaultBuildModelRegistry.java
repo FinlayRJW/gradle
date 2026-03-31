@@ -16,10 +16,10 @@
 
 package org.gradle.features.internal.binding;
 
-import org.gradle.api.internal.DynamicObjectAware;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.features.binding.BuildModel;
 import org.gradle.features.binding.Definition;
-import org.gradle.features.binding.ProjectFeatureApplicationContext;
+import org.gradle.features.registration.BuildModelRegistry;
 import org.gradle.internal.Cast;
 import org.gradle.internal.inspection.DefaultTypeParameterInspection;
 import org.gradle.internal.inspection.TypeParameterInspection;
@@ -27,21 +27,19 @@ import org.gradle.internal.inspection.TypeParameterInspection;
 import javax.inject.Inject;
 import java.util.Map;
 
-public interface ProjectFeatureApplicationContextInternal extends ProjectFeatureApplicationContext {
+public abstract class DefaultBuildModelRegistry implements BuildModelRegistry {
 
     @Inject
-    ProjectFeatureDeclarations getProjectFeatureRegistry();
+    protected abstract ObjectFactory getObjectFactory();
 
     @Inject
-    ProjectFeatureApplicator getProjectFeatureApplicator();
+    protected abstract ProjectFeatureApplicator getProjectFeatureApplicator();
+
+    @Inject
+    protected abstract ProjectFeatureDeclarations getProjectFeatureRegistry();
 
     @Override
-    default <T extends Definition<V>, V extends BuildModel> V getBuildModel(T definition) {
-        return Cast.uncheckedNonnullCast(ProjectFeatureSupportInternal.getContext((DynamicObjectAware) definition).getBuildModel());
-    }
-
-    @Override
-    default <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Class<? extends V> implementationType) {
+    public <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Class<? extends V> implementationType) {
         ProjectFeatureSupportInternal.ProjectFeatureDefinitionContext maybeContext = ProjectFeatureSupportInternal.tryGetContext(definition);
         if (maybeContext != null) {
             return Cast.uncheckedCast(maybeContext.getBuildModel());
@@ -54,7 +52,7 @@ public interface ProjectFeatureApplicationContextInternal extends ProjectFeature
     }
 
     @Override
-    default <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition) {
+    public <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition) {
         @SuppressWarnings("rawtypes")
         TypeParameterInspection<Definition, BuildModel> inspection = new DefaultTypeParameterInspection<>(Definition.class, BuildModel.class, BuildModel.None.class);
         Class<V> modelType = inspection.parameterTypeFor(definition.getClass());
@@ -62,7 +60,8 @@ public interface ProjectFeatureApplicationContextInternal extends ProjectFeature
         return registerBuildModel(definition, modelType);
     }
 
-    default <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Map<Class<?>, Class<?>> nestedBuildModelTypesToImplementationTypes) {
+    @Override
+    public <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Map<Class<?>, Class<?>> nestedBuildModelTypesToImplementationTypes) {
         @SuppressWarnings("rawtypes")
         TypeParameterInspection<Definition, BuildModel> inspection = new DefaultTypeParameterInspection<>(Definition.class, BuildModel.class, BuildModel.None.class);
         Class<V> modelType = inspection.parameterTypeFor(definition.getClass());
