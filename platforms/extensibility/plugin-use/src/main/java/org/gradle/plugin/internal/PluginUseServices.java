@@ -29,8 +29,15 @@ import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.tasks.properties.InspectionScheme;
 import org.gradle.api.internal.tasks.properties.InspectionSchemeFactory;
 import org.gradle.api.problems.internal.InternalProblems;
-import org.gradle.features.registration.BuildModelRegistry;
-import org.gradle.features.internal.binding.DefaultBuildModelRegistry;
+import org.gradle.features.internal.binding.DefaultBuildModelRegistrar;
+import org.gradle.features.internal.binding.DefaultModelDefaultsApplicator;
+import org.gradle.features.internal.binding.DefaultProjectFeatureApplicator;
+import org.gradle.features.internal.binding.DefaultProjectFeatureDeclarations;
+import org.gradle.features.internal.binding.InternalBuildModelRegistrar;
+import org.gradle.features.internal.binding.ModelDefaultsApplicator;
+import org.gradle.features.internal.binding.ModelDefaultsHandler;
+import org.gradle.features.internal.binding.ProjectFeatureApplicator;
+import org.gradle.features.internal.binding.ProjectFeatureDeclarations;
 import org.gradle.initialization.ClassLoaderScopeRegistry;
 import org.gradle.internal.Factory;
 import org.gradle.internal.build.BuildIncluder;
@@ -53,13 +60,6 @@ import org.gradle.plugin.management.internal.PluginResolutionStrategyInternal;
 import org.gradle.plugin.management.internal.autoapply.AutoAppliedPluginRegistry;
 import org.gradle.plugin.management.internal.autoapply.CompositeAutoAppliedPluginRegistry;
 import org.gradle.plugin.management.internal.autoapply.InjectedAutoAppliedPluginRegistry;
-import org.gradle.features.internal.binding.DefaultModelDefaultsApplicator;
-import org.gradle.features.internal.binding.DefaultProjectFeatureApplicator;
-import org.gradle.features.internal.binding.DefaultProjectFeatureDeclarations;
-import org.gradle.features.internal.binding.ModelDefaultsApplicator;
-import org.gradle.features.internal.binding.ModelDefaultsHandler;
-import org.gradle.features.internal.binding.ProjectFeatureApplicator;
-import org.gradle.features.internal.binding.ProjectFeatureDeclarations;
 import org.gradle.plugin.use.internal.DefaultPluginRequestApplicator;
 import org.gradle.plugin.use.internal.InjectedPluginClasspath;
 import org.gradle.plugin.use.internal.PluginDependencyResolutionServices;
@@ -211,8 +211,8 @@ public class PluginUseServices extends AbstractGradleModuleServices {
         }
 
         @Provides
-        BuildModelRegistry createBuildModelRegistry(InstantiatorFactory instantiatorFactory, ServiceRegistry services) {
-            return instantiatorFactory.inject(services).newInstance(DefaultBuildModelRegistry.class);
+        InternalBuildModelRegistrar createBuildModelRegistry(InstantiatorFactory instantiatorFactory, ServiceRegistry services, ProjectInternal project) {
+            return instantiatorFactory.inject(services).newInstance(DefaultBuildModelRegistrar.class, project.getObjects());
         }
     }
 }

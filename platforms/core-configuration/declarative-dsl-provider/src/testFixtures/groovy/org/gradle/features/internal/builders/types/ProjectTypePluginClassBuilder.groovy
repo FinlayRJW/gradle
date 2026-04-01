@@ -17,9 +17,9 @@
 package org.gradle.features.internal.builders.types
 
 import org.gradle.features.annotations.BindsProjectType
+import org.gradle.features.binding.BuildModelRegistrar
 import org.gradle.features.binding.ProjectTypeBinding
 import org.gradle.features.binding.ProjectTypeBindingBuilder
-import org.gradle.features.registration.BuildModelRegistry
 import org.gradle.features.internal.builders.definitions.ProjectTypeDefinitionClassBuilder
 import org.gradle.features.registration.TaskRegistrar
 import org.gradle.test.fixtures.plugin.PluginBuilder
@@ -130,7 +130,7 @@ class ProjectTypePluginClassBuilder {
                 ${TaskRegistrar.class.name} getTaskRegistrar();
 
                 @javax.inject.Inject
-                ${BuildModelRegistry.class.name} getBuildModelRegistry();
+                ${BuildModelRegistrar.class.name} getBuildModelRegistry();
             }
         """
     }

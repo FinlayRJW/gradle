@@ -48,7 +48,6 @@ import org.gradle.features.internal.binding.ProjectFeatureSupportInternal.Projec
 import org.gradle.features.internal.file.DefaultProjectFeatureLayout;
 import org.gradle.features.internal.registration.DefaultConfigurationRegistrar;
 import org.gradle.features.internal.registration.DefaultTaskRegistrar;
-import org.gradle.features.registration.BuildModelRegistry;
 import org.gradle.features.registration.ConfigurationRegistrar;
 import org.gradle.features.registration.TaskRegistrar;
 import org.gradle.internal.Cast;
@@ -146,7 +145,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         // Context-specific services for this feature binding
         ServiceLookup featureServices = getContextSpecificServiceLookup(projectFeature);
         ObjectFactory featureObjectFactory = getObjectFactoryFactory().createObjectFactory(featureServices);
-        BuildModelRegistry buildModelRegistry = getBuildModelRegistry();
+        InternalBuildModelRegistrar buildModelRegistrar = getBuildModelRegistry();
 
         // Instantiate the definition and build model objects with the feature-specific object factory
         OwnDefinition definition = featureObjectFactory.newInstance(projectFeature.getDefinitionImplementationType());
@@ -158,7 +157,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
             projectObjectFactory.newInstance(DefaultProjectFeatureApplicationContextInternal.class, featureObjectFactory);
 
         // bind any nested definitions to build model instances
-        bindNestedDefinitions(projectFeature.getDefinitionPublicType(), Cast.uncheckedCast(definition), buildModelRegistry, projectFeature.getNestedBuildModelTypes());
+        bindNestedDefinitions(projectFeature.getDefinitionPublicType(), Cast.uncheckedCast(definition), buildModelRegistrar, projectFeature.getNestedBuildModelTypes());
 
         return new DefaultFeatureApplication<>(
             projectFeature.getDefinitionImplementationType(),
@@ -171,13 +170,13 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         );
     }
 
-    private void bindNestedDefinitions(Class<?> publicType, DynamicObjectAware parent, BuildModelRegistry buildModelRegistry, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
+    private void bindNestedDefinitions(Class<?> publicType, DynamicObjectAware parent, InternalBuildModelRegistrar buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
         // Must use an anonymous class for config cache compatibility
         propertyWalker.walkProperties(publicType, parent, new PropertyWalker.Visitor() {
             @Override
             public void visit(PropertyAnnotationMetadata propertyMetadata, Object propertyValue) {
                 if (Definition.class.isAssignableFrom(propertyMetadata.getDeclaredReturnType().getRawType())) {
-                    bindNestedDefinition(propertyValue, buildModelRegistry, buildModelImplementationTypes);
+                    bindNestedDefinition(propertyValue, buildModelRegistrar, buildModelImplementationTypes);
                 }
                 if (NamedDomainObjectContainer.class.isAssignableFrom(propertyMetadata.getDeclaredReturnType().getRawType())) {
                     NamedDomainObjectContainer<?> ndoc = Cast.uncheckedCast(propertyValue);
@@ -187,7 +186,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
                         ndoc.all(new Action<Object>() {
                             @Override
                             public void execute(Object element) {
-                                bindNestedDefinition(element, buildModelRegistry, buildModelImplementationTypes);
+                                bindNestedDefinition(element, buildModelRegistrar, buildModelImplementationTypes);
                             }
                         });
                     }
@@ -196,9 +195,9 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         });
     }
 
-    private static void bindNestedDefinition(Object propertyValue, BuildModelRegistry buildModelRegistry, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
+    private static void bindNestedDefinition(Object propertyValue, InternalBuildModelRegistrar buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
         Definition<?> nestedDefinition = Cast.uncheckedCast(propertyValue);
-        buildModelRegistry.registerBuildModel(nestedDefinition, buildModelImplementationTypes);
+        buildModelRegistrar.registerBuildModel(nestedDefinition, buildModelImplementationTypes);
     }
 
     private <OwnDefinition extends Definition<OwnBuildModel>, OwnBuildModel extends BuildModel> ServiceLookup getContextSpecificServiceLookup(ProjectFeatureImplementation<OwnDefinition, OwnBuildModel> projectFeature) {
@@ -237,7 +236,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
     abstract protected TypeAnnotationMetadataStore getTypeAnnotationMetadataStore();
 
     @Inject
-    abstract protected BuildModelRegistry getBuildModelRegistry();
+    abstract protected InternalBuildModelRegistrar getBuildModelRegistry();
 
     /**
      * Walks the public properties of a given object, visiting each property and descending into any properties that are annotated with {@link Nested}.

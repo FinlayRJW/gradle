@@ -19,7 +19,6 @@ package org.gradle.features.internal.binding;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.features.binding.BuildModel;
 import org.gradle.features.binding.Definition;
-import org.gradle.features.registration.BuildModelRegistry;
 import org.gradle.internal.Cast;
 import org.gradle.internal.inspection.DefaultTypeParameterInspection;
 import org.gradle.internal.inspection.TypeParameterInspection;
@@ -27,16 +26,20 @@ import org.gradle.internal.inspection.TypeParameterInspection;
 import javax.inject.Inject;
 import java.util.Map;
 
-public abstract class DefaultBuildModelRegistry implements BuildModelRegistry {
-
-    @Inject
-    protected abstract ObjectFactory getObjectFactory();
+public abstract class DefaultBuildModelRegistrar implements InternalBuildModelRegistrar {
 
     @Inject
     protected abstract ProjectFeatureApplicator getProjectFeatureApplicator();
 
     @Inject
     protected abstract ProjectFeatureDeclarations getProjectFeatureRegistry();
+
+    private final ObjectFactory objectFactory;
+
+    @Inject
+    public DefaultBuildModelRegistrar(ObjectFactory objectFactory) {
+        this.objectFactory = objectFactory;
+    }
 
     @Override
     public <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Class<? extends V> implementationType) {
@@ -45,8 +48,8 @@ public abstract class DefaultBuildModelRegistry implements BuildModelRegistry {
             return Cast.uncheckedCast(maybeContext.getBuildModel());
         }
 
-        V buildModel = ProjectFeatureSupportInternal.createBuildModelInstance(getObjectFactory(), implementationType);
-        ProjectFeatureSupportInternal.attachDefinitionContext(definition, buildModel, getProjectFeatureApplicator(), getProjectFeatureRegistry(), getObjectFactory());
+        V buildModel = ProjectFeatureSupportInternal.createBuildModelInstance(objectFactory, implementationType);
+        ProjectFeatureSupportInternal.attachDefinitionContext(definition, buildModel, getProjectFeatureApplicator(), getProjectFeatureRegistry(), objectFactory);
 
         return buildModel;
     }
