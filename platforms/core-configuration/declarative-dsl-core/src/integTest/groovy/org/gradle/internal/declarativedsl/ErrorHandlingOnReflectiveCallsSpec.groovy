@@ -21,6 +21,8 @@ import org.gradle.features.annotations.RegistersProjectFeatures
 import org.gradle.features.binding.BuildModel
 import org.gradle.features.binding.Definition
 import org.gradle.features.binding.ProjectTypeBinding
+import org.gradle.features.binding.ProjectFeatureApplicationContext
+import org.gradle.features.binding.ProjectTypeApplyAction
 import org.gradle.features.binding.ProjectTypeBindingBuilder
 import org.gradle.kotlin.dsl.fixtures.AbstractKotlinIntegrationTest
 import org.junit.Before
@@ -356,8 +358,8 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractKotlinIntegrationTest {
             import ${BindsProjectType.class.name};
             import ${ProjectTypeBinding.class.name};
             import ${ProjectTypeBindingBuilder.class.name};
-            import org.gradle.features.binding.ProjectTypeApplyAction;
-            import org.gradle.features.binding.ProjectFeatureApplicationContext;
+            import ${ProjectTypeApplyAction.class.name};
+            import ${ProjectFeatureApplicationContext.class.name};
 
             @${BindsProjectType.class.simpleName}(RestrictedPlugin.Binding.class)
             public abstract class RestrictedPlugin implements Plugin<Project> {
@@ -367,9 +369,9 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractKotlinIntegrationTest {
                     }
                 }
 
-                static abstract class ApplyAction implements ProjectTypeApplyAction<Extension, Extension.Model> {
+                static abstract class ApplyAction implements ${ProjectTypeApplyAction.class.simpleName}<Extension, Extension.Model> {
                     @javax.inject.Inject public ApplyAction() { }
-                    @Override public void apply(ProjectFeatureApplicationContext context, Extension definition, Extension.Model model) { }
+                    @Override public void apply(${ProjectFeatureApplicationContext.class.simpleName} context, Extension definition, Extension.Model model) { }
                 }
 
                 @Override

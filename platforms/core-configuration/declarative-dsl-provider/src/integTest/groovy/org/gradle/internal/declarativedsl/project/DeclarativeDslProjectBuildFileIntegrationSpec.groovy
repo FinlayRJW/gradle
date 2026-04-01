@@ -18,6 +18,8 @@ package org.gradle.internal.declarativedsl.project
 
 import org.gradle.features.annotations.BindsProjectType
 import org.gradle.features.annotations.RegistersProjectFeatures
+import org.gradle.features.binding.ProjectFeatureApplicationContext
+import org.gradle.features.binding.ProjectTypeApplyAction
 import org.gradle.features.binding.ProjectTypeBinding
 import org.gradle.features.binding.ProjectTypeBindingBuilder
 import org.gradle.features.registration.TaskRegistrar
@@ -196,8 +198,8 @@ secondaryAccess { three, true, true}"""
             import ${BindsProjectType.class.name};
             import ${ProjectTypeBinding.class.name};
             import ${ProjectTypeBindingBuilder.class.name};
-            import org.gradle.features.binding.ProjectTypeApplyAction;
-            import org.gradle.features.binding.ProjectFeatureApplicationContext;
+            import ${ProjectTypeApplyAction.class.name};
+            import ${ProjectFeatureApplicationContext.class.name};
 
             @${BindsProjectType.class.simpleName}(RestrictedPlugin.Binding.class)
             public abstract class RestrictedPlugin implements Plugin<Project> {
@@ -209,7 +211,7 @@ secondaryAccess { three, true, true}"""
 
                 }
 
-                static abstract class ApplyAction implements ProjectTypeApplyAction<Extension, Extension.Model> {
+                static abstract class ApplyAction implements ${ProjectTypeApplyAction.class.simpleName}<Extension, Extension.Model> {
                     @javax.inject.Inject
                     public ApplyAction() { }
 
@@ -217,7 +219,7 @@ secondaryAccess { three, true, true}"""
                     abstract protected ${TaskRegistrar.class.name} getTaskRegistrar();
 
                     @Override
-                    public void apply(ProjectFeatureApplicationContext context, Extension definition, Extension.Model model) {
+                    public void apply(${ProjectFeatureApplicationContext.class.simpleName} context, Extension definition, Extension.Model model) {
                         getTaskRegistrar().register("printConfiguration", DefaultTask.class, task -> {
                             Property<Extension.Point> referencePoint = definition.getReferencePoint();
                             Extension.Access acc = definition.getPrimaryAccess();
