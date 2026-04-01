@@ -356,13 +356,20 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractKotlinIntegrationTest {
             import ${BindsProjectType.class.name};
             import ${ProjectTypeBinding.class.name};
             import ${ProjectTypeBindingBuilder.class.name};
+            import org.gradle.features.binding.ProjectTypeApplyAction;
+            import org.gradle.features.binding.ProjectFeatureApplicationContext;
 
             @${BindsProjectType.class.simpleName}(RestrictedPlugin.Binding.class)
             public abstract class RestrictedPlugin implements Plugin<Project> {
                 public static class Binding implements ${ProjectTypeBinding.class.simpleName} {
                     public void bind(${ProjectTypeBindingBuilder.class.simpleName} builder) {
-                        builder.bindProjectType("restricted",  Extension.class, (context, definition, model) -> { }).withUnsafeDefinition();
+                        builder.bindProjectType("restricted",  Extension.class, ApplyAction.class).withUnsafeDefinition();
                     }
+                }
+
+                static abstract class ApplyAction implements ProjectTypeApplyAction<Extension, Extension.Model> {
+                    @javax.inject.Inject public ApplyAction() { }
+                    @Override public void apply(ProjectFeatureApplicationContext context, Extension definition, Extension.Model model) { }
                 }
 
                 @Override

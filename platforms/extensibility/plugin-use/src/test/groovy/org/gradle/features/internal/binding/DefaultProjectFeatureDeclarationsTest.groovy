@@ -72,7 +72,7 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * instantiator.newInstance(Binding) >> featureBinding
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
-            builder.bindProjectFeatureToDefinition("test", TestDefinition, ParentDefinition, Mock(ProjectFeatureApplyAction))
+            builder.bindProjectFeatureToDefinition("test", TestDefinition, ParentDefinition, TestProjectFeatureApplyAction)
                 .withUnsafeDefinitionImplementationType(definitionImplementationType)
         }
 
@@ -107,7 +107,7 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * instantiator.newInstance(Binding) >> typeBinding
         1 * typeBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectTypeBindingBuilder
-            builder.bindProjectType("test", TestDefinition, Mock(ProjectTypeApplyAction))
+            builder.bindProjectType("test", TestDefinition, TestProjectTypeApplyAction)
                 .withUnsafeDefinitionImplementationType(definitionImplementationType)
         }
 
@@ -162,7 +162,7 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * instantiator.newInstance(Binding) >> featureBinding
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
-            builder.bindProjectFeatureToDefinition("test", TestDefinition, ParentDefinition, Mock(ProjectFeatureApplyAction))
+            builder.bindProjectFeatureToDefinition("test", TestDefinition, ParentDefinition, TestProjectFeatureApplyAction)
         }
         1 * metadataStore.getTypeMetadata(TestDefinition) >> definitionTypeMetadata
         1 * definitionTypeMetadata.getTypeAnnotationMetadata() >> definitionTypeAnnotationMetadata
@@ -199,9 +199,9 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
             if (Definition.isAssignableFrom(alreadyRegisteredTargetType)) {
-                builder.bindProjectFeatureToDefinition("test", TestDefinition, alreadyRegisteredTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToDefinition("test", TestDefinition, alreadyRegisteredTargetType, TestProjectFeatureApplyAction)
             } else {
-                builder.bindProjectFeatureToBuildModel("test", TestDefinition, alreadyRegisteredTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToBuildModel("test", TestDefinition, alreadyRegisteredTargetType, TestProjectFeatureApplyAction)
             }
         }
         1 * metadataStore.getTypeMetadata(TestDefinition) >> definitionTypeMetadata
@@ -215,9 +215,9 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
             if (Definition.isAssignableFrom(toBeRegisteredTargetType)) {
-                builder.bindProjectFeatureToDefinition("test", TestDefinition, toBeRegisteredTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToDefinition("test", TestDefinition, toBeRegisteredTargetType, TestProjectFeatureApplyAction)
             } else {
-                builder.bindProjectFeatureToBuildModel("test", TestDefinition, toBeRegisteredTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToBuildModel("test", TestDefinition, toBeRegisteredTargetType, TestProjectFeatureApplyAction)
             }
         }
         1 * metadataStore.getTypeMetadata(TestDefinition) >> definitionTypeMetadata
@@ -276,9 +276,9 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
             if (Definition.isAssignableFrom(targetType)) {
-                builder.bindProjectFeatureToDefinition("test", TestDefinition, targetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToDefinition("test", TestDefinition, targetType, TestProjectFeatureApplyAction)
             } else {
-                builder.bindProjectFeatureToBuildModel("test", TestDefinition, targetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToBuildModel("test", TestDefinition, targetType, TestProjectFeatureApplyAction)
             }
         }
         1 * metadataStore.getTypeMetadata(TestDefinition) >> definitionTypeMetadata
@@ -292,9 +292,9 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
         1 * featureBinding.bind(_) >> { args ->
             def builder = args[0] as ProjectFeatureBindingBuilderInternal
             if (Definition.isAssignableFrom(anotherTargetType)) {
-                builder.bindProjectFeatureToDefinition("test", TestDefinition, anotherTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToDefinition("test", TestDefinition, anotherTargetType, TestProjectFeatureApplyAction)
             } else {
-                builder.bindProjectFeatureToBuildModel("test", TestDefinition, anotherTargetType, Mock(ProjectFeatureApplyAction))
+                builder.bindProjectFeatureToBuildModel("test", TestDefinition, anotherTargetType, TestProjectFeatureApplyAction)
             }
         }
         1 * metadataStore.getTypeMetadata(TestDefinition) >> definitionTypeMetadata
@@ -346,4 +346,8 @@ class DefaultProjectFeatureDeclarationsTest extends Specification {
     private abstract static class DuplicateProjectTypeImpl implements Plugin<Project> { }
 
     private abstract static class Binding implements ProjectFeatureBinding { }
+
+    private abstract static class TestProjectFeatureApplyAction implements ProjectFeatureApplyAction { }
+
+    private abstract static class TestProjectTypeApplyAction implements ProjectTypeApplyAction { }
 }

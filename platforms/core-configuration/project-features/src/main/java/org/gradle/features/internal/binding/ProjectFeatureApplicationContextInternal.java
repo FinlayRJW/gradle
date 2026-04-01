@@ -17,6 +17,7 @@
 package org.gradle.features.internal.binding;
 
 import org.gradle.api.internal.DynamicObjectAware;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.features.binding.BuildModel;
 import org.gradle.features.binding.Definition;
 import org.gradle.features.binding.ProjectFeatureApplicationContext;
@@ -28,6 +29,8 @@ import javax.inject.Inject;
 import java.util.Map;
 
 public interface ProjectFeatureApplicationContextInternal extends ProjectFeatureApplicationContext {
+
+    ObjectFactory getObjectFactory();
 
     @Inject
     ProjectFeatureDeclarations getProjectFeatureRegistry();
