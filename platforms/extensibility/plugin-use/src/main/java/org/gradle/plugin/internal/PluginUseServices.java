@@ -33,7 +33,7 @@ import org.gradle.features.internal.binding.DefaultBuildModelRegistrar;
 import org.gradle.features.internal.binding.DefaultModelDefaultsApplicator;
 import org.gradle.features.internal.binding.DefaultProjectFeatureApplicator;
 import org.gradle.features.internal.binding.DefaultProjectFeatureDeclarations;
-import org.gradle.features.internal.binding.InternalBuildModelRegistrar;
+import org.gradle.features.internal.binding.BuildModelRegistrarInternal;
 import org.gradle.features.internal.binding.ModelDefaultsApplicator;
 import org.gradle.features.internal.binding.ModelDefaultsHandler;
 import org.gradle.features.internal.binding.ProjectFeatureApplicator;
@@ -211,7 +211,7 @@ public class PluginUseServices extends AbstractGradleModuleServices {
         }
 
         @Provides
-        InternalBuildModelRegistrar createBuildModelRegistry(InstantiatorFactory instantiatorFactory, ServiceRegistry services, ProjectInternal project) {
+        BuildModelRegistrarInternal createBuildModelRegistry(InstantiatorFactory instantiatorFactory, ServiceRegistry services, ProjectInternal project) {
             return instantiatorFactory.inject(services).newInstance(DefaultBuildModelRegistrar.class, project.getObjects());
         }
     }

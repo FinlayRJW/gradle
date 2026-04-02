@@ -54,4 +54,5 @@ public interface BuildModelRegistrar {
      *
      * @since 9.6.0
      */
-    <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Class<? extends V> implementationType);}
+    <T extends Definition<V>, V extends BuildModel> V registerBuildModel(T definition, Class<? extends V> implementationType);
+}

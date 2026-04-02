@@ -33,7 +33,7 @@ import java.util.Map;
  */
 @Incubating
 @ServiceScope(Scope.Project.class)
-public interface InternalBuildModelRegistrar extends BuildModelRegistrar {
+public interface BuildModelRegistrarInternal extends BuildModelRegistrar {
 
     /**
      * Creates, registers, and returns a new build model for the given {@code definition} instance, using the provided mapping of nested build model types to implementation types.

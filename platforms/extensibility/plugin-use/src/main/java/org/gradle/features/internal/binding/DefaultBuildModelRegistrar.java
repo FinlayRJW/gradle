@@ -26,7 +26,7 @@ import org.gradle.internal.inspection.TypeParameterInspection;
 import javax.inject.Inject;
 import java.util.Map;
 
-public abstract class DefaultBuildModelRegistrar implements InternalBuildModelRegistrar {
+public abstract class DefaultBuildModelRegistrar implements BuildModelRegistrarInternal {
 
     @Inject
     protected abstract ProjectFeatureApplicator getProjectFeatureApplicator();

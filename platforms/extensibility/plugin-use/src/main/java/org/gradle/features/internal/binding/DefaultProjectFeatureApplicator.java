@@ -145,7 +145,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         // Context-specific services for this feature binding
         ServiceLookup featureServices = getContextSpecificServiceLookup(projectFeature);
         ObjectFactory featureObjectFactory = getObjectFactoryFactory().createObjectFactory(featureServices);
-        InternalBuildModelRegistrar buildModelRegistrar = getBuildModelRegistry();
+        BuildModelRegistrarInternal buildModelRegistrar = getBuildModelRegistry();
 
         // Instantiate the definition and build model objects with the feature-specific object factory
         OwnDefinition definition = featureObjectFactory.newInstance(projectFeature.getDefinitionImplementationType());
@@ -170,7 +170,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         );
     }
 
-    private void bindNestedDefinitions(Class<?> publicType, DynamicObjectAware parent, InternalBuildModelRegistrar buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
+    private void bindNestedDefinitions(Class<?> publicType, DynamicObjectAware parent, BuildModelRegistrarInternal buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
         // Must use an anonymous class for config cache compatibility
         propertyWalker.walkProperties(publicType, parent, new PropertyWalker.Visitor() {
             @Override
@@ -195,7 +195,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
         });
     }
 
-    private static void bindNestedDefinition(Object propertyValue, InternalBuildModelRegistrar buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
+    private static void bindNestedDefinition(Object propertyValue, BuildModelRegistrarInternal buildModelRegistrar, Map<Class<?>, Class<?>> buildModelImplementationTypes) {
         Definition<?> nestedDefinition = Cast.uncheckedCast(propertyValue);
         buildModelRegistrar.registerBuildModel(nestedDefinition, buildModelImplementationTypes);
     }
@@ -236,7 +236,7 @@ abstract public class DefaultProjectFeatureApplicator implements ProjectFeatureA
     abstract protected TypeAnnotationMetadataStore getTypeAnnotationMetadataStore();
 
     @Inject
-    abstract protected InternalBuildModelRegistrar getBuildModelRegistry();
+    abstract protected BuildModelRegistrarInternal getBuildModelRegistry();
 
     /**
      * Walks the public properties of a given object, visiting each property and descending into any properties that are annotated with {@link Nested}.
