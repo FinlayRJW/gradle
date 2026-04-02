@@ -150,7 +150,7 @@ class CompositeDynamicObjectTest extends Specification {
         obj.invokeMethod("m", "value")
 
         then:
-        def className = CompositeDynamicObjectTest.name + '$1'
+        def className = CompositeDynamicObject.name
         def e = thrown MissingMethodException
         e.message.startsWith("No signature of method: ${className}.m() is applicable for argument types: (String) values: [value]")
     }

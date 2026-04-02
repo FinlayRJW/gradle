@@ -47,7 +47,7 @@ import java.util.Map;
  *
  * @see org.gradle.internal.instantiation.generator.MixInExtensibleDynamicObject
  */
-public class ExtensibleDynamicObject extends AbstractDynamicObject {
+public class ExtensibleDynamicObject extends AbstractDynamicObject implements HierarchicalDynamicObject {
 
     public enum Location {
         BeforeConventionNotInherited, BeforeConvention, AfterConvention
@@ -56,6 +56,7 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
     private final AbstractDynamicObject dynamicDelegate;
     @Nullable
     private HierarchicalDynamicObject parent;
+    private boolean deprecateParentAccess;
     private final DefaultExtensionContainer extensionContainer;
 
     @Nullable
@@ -125,8 +126,22 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
         return extensionContainer.getExtraProperties();
     }
 
-    public void setParent(HierarchicalDynamicObject parent) {
+    @Override
+    @Nullable
+    public HierarchicalDynamicObject getParent() {
+        return parent;
+    }
+
+    public void setParent(@Nullable HierarchicalDynamicObject parent) {
         this.parent = parent;
+    }
+
+    /**
+     * Enables deprecation warnings when properties or methods are resolved from the parent.
+     * This should be called when the parent represents a cross-project boundary.
+     */
+    public void setDeprecateParentAccess(boolean deprecateParentAccess) {
+        this.deprecateParentAccess = deprecateParentAccess;
     }
 
     public ExtensionContainer getExtensions() {
@@ -157,12 +172,15 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
     }
 
     private DynamicObject snapshotInheritable() {
-        final List<DynamicObject> delegates = new ArrayList<>(4);
+        final List<DynamicObject> delegates = new ArrayList<>(5);
         delegates.add(extraPropertiesDynamicObject);
         if (beforeConvention != null) {
             delegates.add(beforeConvention);
         }
         delegates.add(extensionContainer.getExtensionsAsDynamicObject());
+        if (parent != null) {
+            delegates.add(parent);
+        }
         return new CompositeDynamicObject(delegates.toArray(new DynamicObject[0]), dynamicDelegate::getDisplayName);
     }
 
@@ -174,11 +192,13 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
         HierarchicalDynamicObject parent = this.parent;
         while (parent != null) {
             if (parent.hasProperty(name)) {
-                DeprecationLogger.deprecateAction("Calling 'hasProperty' to query presence of property from parent project")
-                    .withContext("Tried to query parent project " + parent.getDisplayName() + " for presence property '" + name + "' from " + getDisplayName() + ".")
-                    .willBecomeAnErrorInGradle10()
-                    .undocumented()
-                    .nagUser();
+                if (deprecateParentAccess) {
+                    DeprecationLogger.deprecateAction("Calling 'hasProperty' to query presence of property from parent project")
+                        .withContext("Tried to query parent project " + parent.getDisplayName() + " for presence property '" + name + "' from " + getDisplayName() + ".")
+                        .willBecomeAnErrorInGradle10()
+                        .undocumented()
+                        .nagUser();
+                }
                 return true;
             }
             parent = parent.getParent();
@@ -196,11 +216,13 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
         while (parent != null) {
             result = parent.tryGetProperty(name);
             if (result.isFound()) {
-                DeprecationLogger.deprecateAction("Calling 'getProperty' to retrieve property from parent project")
-                    .withContext("Tried to query parent project " + parent.getDisplayName() + " for property '" + name + "' from " + getDisplayName() + ".")
-                    .willBecomeAnErrorInGradle10()
-                    .undocumented()
-                    .nagUser();
+                if (deprecateParentAccess) {
+                    DeprecationLogger.deprecateAction("Calling 'getProperty' to retrieve property from parent project")
+                        .withContext("Tried to query parent project " + parent.getDisplayName() + " for property '" + name + "' from " + getDisplayName() + ".")
+                        .willBecomeAnErrorInGradle10()
+                        .undocumented()
+                        .nagUser();
+                }
                 return result;
             }
             parent = parent.getParent();
@@ -248,7 +270,9 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
         HierarchicalDynamicObject parent = this.parent;
         while (parent != null) {
             if (parent.hasMethod(name, arguments)) {
-                emitMethodDeprecation(name, parent);
+                if (deprecateParentAccess) {
+                    emitMethodDeprecation(name, parent);
+                }
                 return true;
             }
             parent = parent.getParent();
@@ -263,8 +287,11 @@ public class ExtensibleDynamicObject extends AbstractDynamicObject {
         }
         HierarchicalDynamicObject parent = this.parent;
         while (parent != null) {
-            if (parent.hasMethod(name, arguments)) {
-                emitMethodDeprecation(name, parent);
+            result = parent.tryInvokeMethod(name, arguments);
+            if (result.isFound()) {
+                if (deprecateParentAccess) {
+                    emitMethodDeprecation(name, parent);
+                }
                 return result;
             }
             parent = parent.getParent();
