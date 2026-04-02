@@ -16,14 +16,22 @@
 
 package org.gradle.features.binding;
 
+import org.gradle.api.Incubating;
+import org.gradle.internal.service.scopes.Scope;
+import org.gradle.internal.service.scopes.ServiceScope;
+
 /**
  * Provides explicit build model registration.
  * <p>
  * While a feature's primary definition object has its build model registered automatically,
  * nested definition objects (such as container elements) require explicit registration via this service.
+ * <p>
+ * This service is available for injection in unsafe apply actions.
  *
  * @since 9.6.0
  */
+@Incubating
+@ServiceScope(Scope.Project.class)
 public interface BuildModelRegistrar {
     /**
      * Creates, registers, and returns a new build model instance for the given {@code definition} instance.

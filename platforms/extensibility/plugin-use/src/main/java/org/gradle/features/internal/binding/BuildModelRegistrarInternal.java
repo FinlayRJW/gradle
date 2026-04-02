@@ -16,7 +16,6 @@
 
 package org.gradle.features.internal.binding;
 
-import org.gradle.api.Incubating;
 import org.gradle.features.binding.BuildModel;
 import org.gradle.features.binding.BuildModelRegistrar;
 import org.gradle.features.binding.Definition;
@@ -26,12 +25,6 @@ import org.gradle.internal.service.scopes.ServiceScope;
 
 import java.util.Map;
 
-/**
- * {@inheritDoc}
- *
- * This service is available for injection in unsafe apply actions.
- */
-@Incubating
 @ServiceScope(Scope.Project.class)
 public interface BuildModelRegistrarInternal extends BuildModelRegistrar {
 
