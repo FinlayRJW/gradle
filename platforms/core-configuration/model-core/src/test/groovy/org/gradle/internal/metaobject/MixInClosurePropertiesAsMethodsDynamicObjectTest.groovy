@@ -21,6 +21,11 @@ import org.gradle.internal.extensibility.ExtensibleDynamicObject
 import org.gradle.util.TestUtil
 import spock.lang.Specification
 
+/**
+ * Tests the closure-as-method invocation behavior in {@link ExtensibleDynamicObject#tryInvokeMethod}.
+ * When a method is not found, ExtensibleDynamicObject falls back to looking for a property
+ * with the method name whose value is a Closure or NamedDomainObjectContainer.
+ */
 class MixInClosurePropertiesAsMethodsDynamicObjectTest extends Specification {
 
     def "invokes method on first delegate that has a property with closure value"() {
@@ -36,9 +41,9 @@ class MixInClosurePropertiesAsMethodsDynamicObjectTest extends Specification {
         result == "result"
 
         and:
-        1 * obj1.tryInvokeMethod("m", ["value"] as Object[]) >> DynamicInvokeResult.notFound()
-        1 * obj2.tryInvokeMethod("m", ["value"] as Object[]) >> DynamicInvokeResult.notFound()
-        1 * obj3.tryInvokeMethod("m", ["value"] as Object[]) >> DynamicInvokeResult.notFound()
+        1 * obj1.tryInvokeMethod("m", _) >> DynamicInvokeResult.notFound()
+        1 * obj2.tryInvokeMethod("m", _) >> DynamicInvokeResult.notFound()
+        1 * obj3.tryInvokeMethod("m", _) >> DynamicInvokeResult.notFound()
         1 * obj1.tryGetProperty("m") >> DynamicInvokeResult.notFound()
         1 * obj2.tryGetProperty("m") >> DynamicInvokeResult.found({ it -> "result" })
         0 * _
@@ -171,9 +176,16 @@ class MixInClosurePropertiesAsMethodsDynamicObjectTest extends Specification {
         !result.isFound()
     }
 
+    /**
+     * Creates an ExtensibleDynamicObject with the given mock delegates added as
+     * additional objects. This ensures the closure-as-method fallback in
+     * ExtensibleDynamicObject.tryInvokeMethod can find properties from the delegates.
+     */
     def create(DynamicObject... objects) {
+        def edo = new ExtensibleDynamicObject(new Object(), Object.class, TestUtil.instantiatorFactory().decorateLenient())
         def composite = new CompositeDynamicObject(objects, () -> "<obj>")
-        new ExtensibleDynamicObject(composite, Object.class, TestUtil.instantiatorFactory().decorateLenient())
+        edo.addObject(composite, ExtensibleDynamicObject.Location.BeforeConvention)
+        return edo
     }
 
 }
