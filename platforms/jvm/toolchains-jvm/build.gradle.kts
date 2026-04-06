@@ -39,8 +39,9 @@ dependencies {
     api(projects.jvmServices)
     api(projects.native)
     api(projects.persistentCache)
-    api(projects.processServices)
+    api(projects.processServicesBase)
     api(projects.resources)
+    api(projects.startParameter)
     api(projects.toolchainsJvmShared)
 
     api(libs.inject)

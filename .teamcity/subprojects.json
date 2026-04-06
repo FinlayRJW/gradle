@@ -105,10 +105,24 @@
     "crossVersionTests": false
   },
   {
+    "name": "build-cache-api",
+    "path": "platforms/core-execution/build-cache-api",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "build-cache-base",
     "path": "platforms/core-execution/build-cache-base",
     "unitTests": true,
     "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "build-cache-core",
+    "path": "platforms/core-execution/build-cache-core",
+    "unitTests": true,
+    "functionalTests": true,
     "crossVersionTests": false
   },
   {
@@ -172,13 +186,6 @@
     "path": "platforms/core-runtime/build-discovery-reporting",
     "unitTests": true,
     "functionalTests": false,
-    "crossVersionTests": false
-  },
-  {
-    "name": "build-events",
-    "path": "subprojects/build-events",
-    "unitTests": true,
-    "functionalTests": true,
     "crossVersionTests": false
   },
   {
@@ -395,6 +402,13 @@
     "name": "daemon-main",
     "path": "platforms/core-runtime/daemon-main",
     "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "daemon-messaging",
+    "path": "platforms/core-runtime/daemon-messaging",
+    "unitTests": true,
     "functionalTests": false,
     "crossVersionTests": false
   },
@@ -730,6 +744,13 @@
   {
     "name": "hashing",
     "path": "platforms/core-execution/hashing",
+    "unitTests": true,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "hashing-services",
+    "path": "platforms/core-execution/hashing-services",
     "unitTests": true,
     "functionalTests": false,
     "crossVersionTests": false
@@ -1281,6 +1302,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "process-services-base",
+    "path": "platforms/core-runtime/process-services-base",
+    "unitTests": true,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "project-features",
     "path": "platforms/core-configuration/project-features",
     "unitTests": false,
@@ -1495,6 +1523,13 @@
     "path": "platforms/software/software-diagnostics",
     "unitTests": true,
     "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
+    "name": "start-parameter",
+    "path": "platforms/core-runtime/start-parameter",
+    "unitTests": true,
+    "functionalTests": false,
     "crossVersionTests": false
   },
   {

@@ -35,7 +35,7 @@ import java.util.jar.Manifest
 import static org.hamcrest.CoreMatchers.containsString
 
 class WrapperGenerationIntegrationTest extends AbstractIntegrationSpec {
-    private static final HashCode EXPECTED_WRAPPER_JAR_HASH = HashCode.fromString("7ef3d73bd95c047814d76ec8324f72deefb96593eb9ce87aa06ecdcdaba7ffe8")
+    private static final HashCode EXPECTED_WRAPPER_JAR_HASH = HashCode.fromString("497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7")
 
     def "generated wrapper scripts use correct line separators"() {
         buildFile << """
@@ -65,7 +65,7 @@ class WrapperGenerationIntegrationTest extends AbstractIntegrationSpec {
 
         then:
         // wrapper needs to be small. Let's check it's smaller than some arbitrary 'small' limit
-        file("gradle/wrapper/gradle-wrapper.jar").length() < 48 * 1024
+        file("gradle/wrapper/gradle-wrapper.jar").length() < 49 * 1024
     }
 
     def "wrapper jar has LICENSE file"() {
@@ -170,6 +170,22 @@ class WrapperGenerationIntegrationTest extends AbstractIntegrationSpec {
 
         then:
         file("gradle/wrapper/gradle-wrapper.properties").text.contains("networkTimeout=7000")
+    }
+
+    def "generated wrapper scripts for given retries from command-line"() {
+        when:
+        run "wrapper", "--retries", "5"
+
+        then:
+        file("gradle/wrapper/gradle-wrapper.properties").text.contains("retries=5")
+    }
+
+    def "generated wrapper scripts for given retry back off from command-line"() {
+        when:
+        run "wrapper", "--retry-back-off-ms", "1000"
+
+        then:
+        file("gradle/wrapper/gradle-wrapper.properties").text.contains("retryBackOffMs=1000")
     }
 
     def "wrapper JAR does not contain version in manifest"() {

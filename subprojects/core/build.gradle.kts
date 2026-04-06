@@ -1,3 +1,5 @@
+import gradlebuild.integrationtests.configureTestSourceSetInIde
+
 plugins {
     id("gradlebuild.distribution.api-java")
     id("gradlebuild.cross-version-tests")
@@ -15,6 +17,9 @@ val testInterceptors = sourceSets.create("testInterceptors") {
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += sourceSets.main.get().output
 }
+
+configureTestSourceSetInIde(testInterceptors)
+
 sourceSets.test {
     compileClasspath += testInterceptors.output
     runtimeClasspath += testInterceptors.output
@@ -39,10 +44,9 @@ dependencies {
     api(projects.baseServices)
     api(projects.baseServicesGroovy)
     api(projects.buildCache)
+    api(projects.buildCacheApi)
     api(projects.buildCacheBase)
-    api(projects.buildCacheLocal)
-    api(projects.buildCachePackaging)
-    api(projects.buildCacheSpi)
+    api(projects.buildCacheCore)
     api(projects.buildDiscovery)
     api(projects.buildDiscoveryImpl)
     api(projects.buildInitSpecs)
@@ -55,6 +59,7 @@ dependencies {
     api(projects.concurrent)
     api(projects.coreApi)
     api(projects.credentialsApi)
+    api(projects.daemonMessaging)
     api(projects.declarativeDslApi)
     api(projects.enterpriseLogging)
     api(projects.enterpriseOperations)
@@ -66,6 +71,7 @@ dependencies {
     api(projects.files)
     api(projects.functional)
     api(projects.hashing)
+    api(projects.hashingServices)
     api(projects.instrumentationAgentServices)
     api(projects.instrumentationReporting)
     api(projects.internalInstrumentationApi)
@@ -83,6 +89,7 @@ dependencies {
     api(projects.problemsApi)
     api(projects.processServices)
     api(projects.processServicesApi)
+    api(projects.processServicesBase)
     api(projects.resources)
     api(projects.scopedPersistentCache)
     api(projects.serialization)
@@ -90,8 +97,10 @@ dependencies {
     api(projects.serviceProvider)
     api(projects.snapshots)
     api(projects.projectFeatures)
+    api(projects.startParameter)
     api(projects.stdlibJavaExtensions)
     api(projects.time)
+    api(projects.toolingApi)
     api(projects.versionedCache)
 
     api(libs.asm)
@@ -102,6 +111,8 @@ dependencies {
     api(libs.jspecify)
     api(libs.jsr305)
 
+    implementation(projects.buildCachePackaging)
+    implementation(projects.buildCacheSpi)
     implementation(projects.buildDiscoveryReporting)
     implementation(projects.buildOperationsTrace)
     implementation(projects.daemonLogging)
@@ -268,6 +279,7 @@ dependencies {
     integTestImplementation(testFixtures(projects.native))
     integTestImplementation(testFixtures(projects.fileTemp))
     integTestImplementation(testFixtures(projects.launcher))
+    integTestImplementation(testFixtures(projects.testingBase))
 
     integTestDistributionRuntimeOnly(projects.distributionsJvm) {
         because("Some tests utilise the 'java-gradle-plugin' and with that TestKit, some also use the 'war' plugin")

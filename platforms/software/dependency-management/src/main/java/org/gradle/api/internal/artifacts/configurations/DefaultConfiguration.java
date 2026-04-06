@@ -80,7 +80,6 @@ import org.gradle.api.internal.initialization.ResettableConfiguration;
 import org.gradle.api.internal.project.ProjectIdentity;
 import org.gradle.api.internal.tasks.TaskDependencyResolveContext;
 import org.gradle.api.problems.ProblemId;
-import org.gradle.api.problems.Severity;
 import org.gradle.api.problems.internal.GradleCoreProblemGroup;
 import org.gradle.api.problems.internal.InternalProblems;
 import org.gradle.api.provider.Provider;
@@ -250,7 +249,7 @@ public abstract class DefaultConfiguration extends AbstractFileCollection implem
         this.domainObjectContext = domainObjectContext;
 
         this.displayName = Describables.memoize(new ConfigurationDescription(identityPath));
-        this.configurationAttributes = new FreezableAttributeContainer(configurationServices.getAttributesFactory().mutable(), this.displayName);
+        this.configurationAttributes = configurationServices.getAttributesFactory().freezable(configurationServices.getAttributesFactory().mutable(), this.displayName);
 
         this.resolutionAccess = new ConfigurationResolutionAccess();
         this.resolvableDependencies = configurationServices.getObjectFactory().newInstance(ConfigurationResolvableDependencies.class, this);
@@ -1318,7 +1317,6 @@ public abstract class DefaultConfiguration extends AbstractFileCollection implem
                         properUsageDesc
                     )
                 );
-                spec.severity(Severity.ERROR);
             });
         } else if (isExclusivelyDeprecatedUsage(properUsages)) {
             DeprecationLogger.deprecateAction(String.format("Calling %s on %s", methodName, this))
@@ -1497,7 +1495,6 @@ public abstract class DefaultConfiguration extends AbstractFileCollection implem
         ProblemId id = ProblemId.create("method-not-allowed", "Method call not allowed", GradleCoreProblemGroup.configurationUsage());
         throw configurationServices.getProblems().getInternalReporter().throwing(ex, id, spec -> {
             spec.contextualLabel(ex.getMessage());
-            spec.severity(Severity.ERROR);
         });
     }
 
@@ -1657,7 +1654,6 @@ public abstract class DefaultConfiguration extends AbstractFileCollection implem
         ProblemId id = ProblemId.create("extend-detached-not-allowed", "Extending a detachedConfiguration is not allowed", GradleCoreProblemGroup.configurationUsage());
         throw configurationServices.getProblems().getInternalReporter().throwing(ex, id, spec -> {
             spec.contextualLabel(ex.getMessage());
-            spec.severity(Severity.ERROR);
         });
     }
 

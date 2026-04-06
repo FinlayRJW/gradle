@@ -119,7 +119,7 @@ model {
         fails "assemble"
 
         then:
-        failureDescriptionContains("Execution failed for task ':assemble'.")
+        failureDescriptionContains("Execution failed for task ':assemble' (registered by plugin class 'org.gradle.language.base.plugins.LifecycleBasePlugin').")
         failure.assertHasCause("""No buildable binaries found:
   - shared library 'another:sharedLibrary': Disabled by user
   - static library 'another:staticLibrary': Disabled by user

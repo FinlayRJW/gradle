@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.ShadowJavaPlugin.Companion.shadowRuntimeElements
 import gradlebuild.basics.PublicKotlinDslApi
+import org.gradle.kotlin.dsl.implementation
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
 plugins {
@@ -14,8 +15,9 @@ description = "Kotlin DSL Provider"
 
 dependencies {
     api(projects.antApi)
-    api(projects.buildProcessServices)
     api(projects.baseServices)
+    api(projects.buildCacheApi)
+    api(projects.buildProcessServices)
     api(projects.classloaders)
     api(projects.core)
     api(projects.coreApi)
@@ -29,6 +31,7 @@ dependencies {
     api(projects.modelCore)
     api(projects.normalizationApi)
     api(projects.persistentCache)
+    api(projects.startParameter)
     api(projects.stdlibJavaExtensions)
     api(projects.toolingApi)
 
@@ -58,6 +61,7 @@ dependencies {
     implementation(projects.fileTemp)
     implementation(projects.files)
     implementation(projects.functional)
+    implementation(projects.hashingServices)
     implementation(projects.io)
     implementation(projects.logging)
     implementation(projects.messaging)

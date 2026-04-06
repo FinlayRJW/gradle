@@ -24,7 +24,7 @@ jtar = "2.3!!"
 junit5ForTests = "5.12.2!!"
 junitForTests = "4.13.2!!"
 junitPlatformForTests = "1.12.2!!"
-littleproxy = "2.0.5!!"
+littleproxy = "2.2.1!!"
 mockitoCore = "5.17.0!!"
 mockitoKotlin = "4.1.0!!"
 mockwebserver = "4.12.0!!"
@@ -49,6 +49,7 @@ ansiControlSequenceUtil = { group = "net.rubygrapefruit", name = "ansi-control-s
 archunit = { group = "com.tngtech.archunit", name = "archunit", version.ref = "archunit" }
 archunitJunit5 = { group = "com.tngtech.archunit", name = "archunit-junit5", version.ref = "archunit" }
 archunitJunit5Api = { group = "com.tngtech.archunit", name = "archunit-junit5-api", version.ref = "archunit" }
+asmUtil = { group = "org.ow2.asm", name = "asm-util", version.ref = "asm" }
 assertj = { group = "org.assertj", name = "assertj-core", version.ref = "assertj" }
 awaitility = { group = "org.awaitility", name = "awaitility-kotlin", version.ref = "awaitility" }
 bytebuddy = { group = "net.bytebuddy", name = "byte-buddy", version.ref = "bytebuddy" }
@@ -87,7 +88,7 @@ junitJupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.re
 junitPlatform = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatformForTests" }
 junitPlatformEngine = { group = "org.junit.platform", name = "junit-platform-engine", version.ref = "junitPlatformForTests" }
 kotlinxCoroutinesDebug = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-debug", version.ref = "kotlinCoroutines" }
-littleproxy = { group = "xyz.rogfam", name = "littleproxy", version.ref = "littleproxy" }
+littleproxy = { group = "io.github.littleproxy", name = "littleproxy", version.ref = "littleproxy" }
 mavenResolverConnectorBasic = { group = "org.apache.maven.resolver", name = "maven-resolver-connector-basic", version.ref = "mavenResolver" }
 mavenResolverImpl = { group = "org.apache.maven.resolver", name = "maven-resolver-impl", version.ref = "mavenResolver" }
 mavenResolverProvider = { group = "org.apache.maven", name = "maven-resolver-provider", version.ref = "maven" }

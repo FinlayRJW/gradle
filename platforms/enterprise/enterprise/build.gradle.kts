@@ -21,6 +21,7 @@ dependencies {
     api(projects.serviceLookup)
     api(projects.serviceProvider)
     api(projects.snapshots)
+    api(projects.startParameter)
     api(projects.stdlibJavaExtensions)
     api(projects.testingJvm)
     api(projects.time)
@@ -29,7 +30,6 @@ dependencies {
     api(libs.jspecify)
 
     implementation(projects.concurrent)
-    implementation(projects.processServicesApi)
     implementation(projects.dependencyManagement)
     implementation(projects.files)
     implementation(projects.hashing)

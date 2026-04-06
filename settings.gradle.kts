@@ -30,7 +30,6 @@ apply(from = "gradle/shared-with-buildSrc/mirrors.settings.gradle.kts")
 // Gradle implementation projects
 unassigned {
     subproject("core")
-    subproject("build-events")
     subproject("composite-builds")
     subproject("core-api")
 }
@@ -58,6 +57,7 @@ val core = platform("core") {
         subproject("collections")
         subproject("concurrent")
         subproject("daemon-main")
+        subproject("daemon-messaging")
         subproject("daemon-protocol")
         subproject("daemon-services")
         subproject("daemon-server")
@@ -84,6 +84,7 @@ val core = platform("core") {
         subproject("native")
         subproject("process-memory-services")
         subproject("process-services")
+        subproject("process-services-base")
         subproject("process-services-api")
         subproject("report-rendering")
         subproject("serialization")
@@ -91,6 +92,7 @@ val core = platform("core") {
         subproject("service-provider")
         subproject("service-registry-builder")
         subproject("service-registry-impl")
+        subproject("start-parameter")
         subproject("time")
         subproject("tooling-api-provider")
         subproject("versioned-cache")
@@ -147,7 +149,9 @@ val core = platform("core") {
     // Core Execution Module
     module("core-execution") {
         subproject("build-cache")
+        subproject("build-cache-api")
         subproject("build-cache-base")
+        subproject("build-cache-core")
         subproject("build-cache-example-client")
         subproject("build-cache-http")
         subproject("build-cache-local")
@@ -158,6 +162,7 @@ val core = platform("core") {
         subproject("execution-e2e-tests")
         subproject("file-watching")
         subproject("hashing")
+        subproject("hashing-services")
         subproject("normalization")
         subproject("normalization-api")
         subproject("normalization-java")

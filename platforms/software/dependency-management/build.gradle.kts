@@ -44,6 +44,7 @@ dependencies {
     api(projects.serviceLookup)
     api(projects.serviceProvider)
     api(projects.snapshots)
+    api(projects.startParameter)
     api(projects.stdlibJavaExtensions)
     api(projects.versionedCache)
 
@@ -79,7 +80,7 @@ dependencies {
     testImplementation(projects.softwareDiagnostics)
 
     testImplementation(projects.processServices)
-    testImplementation(libs.asmUtil)
+    testImplementation(testLibs.asmUtil)
     testImplementation(libs.commonsHttpclient)
     testImplementation(libs.groovyXml)
     testImplementation(libs.jsoup)
