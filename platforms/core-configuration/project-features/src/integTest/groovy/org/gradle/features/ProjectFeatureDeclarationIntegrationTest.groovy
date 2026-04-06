@@ -16,6 +16,7 @@
 
 package org.gradle.features
 
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.executer.ExecutionFailure
 import org.gradle.integtests.fixtures.polyglot.PolyglotDslTest
@@ -23,8 +24,11 @@ import org.gradle.integtests.fixtures.polyglot.PolyglotTestFixture
 import org.gradle.integtests.fixtures.polyglot.SkipDsl
 import org.gradle.integtests.fixtures.versions.KotlinGradlePluginVersions
 import org.gradle.internal.declarativedsl.DeclarativeTestUtils
-import org.gradle.features.internal.ProjectFeatureFixture
+import org.gradle.features.internal.TestScenarioFixture
 import org.gradle.test.fixtures.dsl.GradleDsl
+
+import static org.gradle.features.internal.builders.Language.KOTLIN
+import static org.gradle.features.internal.builders.PluginClassBuilder.BindingStyle.REIFIED
 import org.gradle.test.fixtures.plugin.PluginBuilder
 import org.gradle.test.fixtures.server.http.MavenHttpPluginRepository
 import org.gradle.test.precondition.Requires
@@ -33,7 +37,7 @@ import org.hamcrest.Matchers
 import org.junit.Rule
 
 @PolyglotDslTest
-class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec implements ProjectFeatureFixture, PolyglotTestFixture {
+class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec implements TestScenarioFixture, PolyglotTestFixture {
 
     @Rule
     MavenHttpPluginRepository pluginPortal = MavenHttpPluginRepository.asGradlePluginPortal(executer, mavenRepo)
@@ -51,22 +55,68 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'can declare and configure a custom project feature from included build'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeature()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
@@ -74,7 +124,33 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
     def 'can declare and configure a custom project feature from published plugin'() {
         given:
         pluginPortal.start()
-        PluginBuilder pluginBuilder = withProjectFeature()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.publishAs("com", "example", "1.0", pluginPortal, createExecuter()).allowAll()
 
@@ -84,23 +160,69 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
             }
         """
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'can declare and configure a custom project feature from plugin published to a custom repository'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeature()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.publishAs("com", "example", "1.0", mavenHttpRepo, createExecuter()).allowAll()
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
 
@@ -115,46 +237,153 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
             }
         """
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     @Requires(UnitTestPreconditions.Jdk23OrEarlier) // Because Kotlin does not support 24 yet and falls back to 23 causing inconsistent JVM targets
     def "can declare and configure a custom project feature in Kotlin"() {
-        PluginBuilder pluginBuilder = withKotlinProjectFeaturePlugin()
+        PluginBuilder pluginBuilder = testScenario {
+            language KOTLIN
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.applyBuildScriptPlugin("org.jetbrains.kotlin.jvm", new KotlinGradlePluginVersions().getLatestStableOrRC())
         pluginBuilder.addBuildScriptContent pluginBuildScriptForKotlin
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'can apply multiple project features to a target receiver'() {
         given:
-        PluginBuilder pluginBuilder = withMultipleProjectFeaturePlugins()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+            projectFeature("anotherFeature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -187,7 +416,12 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         when:
         run(":printAnotherFeatureDefinitionConfiguration")
@@ -197,7 +431,7 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("definition fizz.buzz = baz")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
         outputContains("Binding AnotherFeatureDefinition")
@@ -206,22 +440,69 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
     @SkipDsl(dsl = GradleDsl.GROOVY, because = "Groovy has no problem with finding non-public methods/types ...")
     def 'can declare and configure a custom project feature with a definition that has public and implementation types'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureDefinitionThatHasPublicAndImplementationTypes()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    implementationType("FeatureDefinitionImpl")
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
 
@@ -248,7 +529,34 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'sensible error when a project feature plugin is registered that does not expose a project feature'() {
         given:
-        def pluginBuilder = withProjectFeaturePluginThatDoesNotExposeProjectFeatures()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    noBindings()
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -259,19 +567,75 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
         then:
         failure.assertHasCause("Failed to apply plugin 'com.example.test-software-ecosystem'.")
-        failure.assertHasCause("A problem was found with the NotAProjectFeaturePlugin plugin.")
-        failure.assertHasCause("Type 'org.gradle.test.NotAProjectFeaturePlugin' is registered as a project feature plugin but does not expose a project feature.")
+        failure.assertHasCause("A problem was found with the FeatureImplPlugin plugin.")
+        failure.assertHasCause("Type 'org.gradle.test.FeatureImplPlugin' is registered as a project feature plugin but does not expose a project feature.")
     }
 
     def 'sensible error when two plugins register features with the same name and binding target'() {
         given:
-        PluginBuilder pluginBuilder = withTwoProjectFeaturesThatHaveTheSameName()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+            projectFeature("feature") {
+                definition("AnotherFeatureDefinition") {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    pluginClassName "AnotherFeatureImplPlugin"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":help")
@@ -279,7 +643,7 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         then:
         assertDescriptionOrCause(failure,
             "Project feature 'feature' is registered by multiple plugins:\n" +
-                "  - Project feature 'feature' is registered by both 'org.gradle.test.AnotherProjectFeatureImplPlugin' and 'org.gradle.test.ProjectFeatureImplPlugin' but their bindings have overlapping target types.\n" +
+                "  - Project feature 'feature' is registered by both 'org.gradle.test.AnotherFeatureImplPlugin' and 'org.gradle.test.FeatureImplPlugin' but their bindings have overlapping target types.\n" +
                 "    \n" +
                 "    Reason: A project feature or type with a given name must bind to a unique target type.\n" +
                 "    \n" +
@@ -289,52 +653,213 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'can have two plugins that register features with the same name but different bindings'() {
         given:
-        PluginBuilder pluginBuilder = withTwoProjectFeaturesThatHaveTheSameNameButDifferentBindings()
+        PluginBuilder pluginBuilder = testScenario {
+            def mainType = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo mainType
+                }
+            }
+            def otherType = projectType("anotherProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    pluginClassName "AnotherFeatureImplPlugin"
+                    bindsFeatureTo otherType
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         succeeds(":printProjectTypeDefinitionConfiguration", ":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
     }
 
     def 'can declare and configure a custom project feature that binds to a build model'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureThatBindsToBuildModel()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindToBuildModel()
+                    bindsFeatureTo type.definition.fullyQualifiedBuildModelClassName
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("definition text = foo")
+        outputContains("definition fizz.buzz = baz")
+        outputContains("model id = test")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'can declare and configure a custom project feature that has a build model with public and implementation class types'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureBuildModelThatHasPublicAndImplementationTypes()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    buildModel("FeatureModel") {
+                        property "text", String
+                        implementationType "FeatureModelImpl"
+                        mapping """
+                            model.getText().set(definition.getText());
+                        """
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeatureTextProperty << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
@@ -346,7 +871,7 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
         outputContains("feature model class: FeatureDefinition\$FeatureModelImpl")
@@ -354,13 +879,60 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'can declare and configure a custom feature that targets a nested definition of a project type'() {
         given:
-        PluginBuilder pluginBuilder = withProjectTypeAndFeatureThatBindsToNestedDefinition()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        implementsDefinition("FooBuildModel") {
+                            property "barProcessed", String
+                        }
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                        property "dir", DirectoryProperty
+                        mapping """
+                            model.getText().set(parent.getBar().map(bar -> definition.getText().get() + " " + bar.toUpperCase()));
+                            model.getDir().set(getProjectFeatureLayout().getProjectDirectory().dir(definition.getText().get()));
+                        """
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo type.definition.className + ".Foo"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatAppliesFeatureToNestedBlock << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+                foo {
+                    bar = "bar"
+                    feature {
+                        text = "foo"
+                        fizz {
+                            buzz = "baz"
+                        }
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printFeatureDefinitionConfiguration")
@@ -371,13 +943,67 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'can declare and configure a custom feature that targets a nested build model of a project type'() {
         given:
-        PluginBuilder pluginBuilder = withProjectTypeAndFeatureThatBindsToNestedBuildModel()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        implementsDefinition("FooBuildModel") {
+                            property "barProcessed", String
+                        }
+                        property "bar", String
+                    }
+                }
+                plugin {
+                    applyActionCode """
+                        context.getBuildModel(definition.getFoo())
+                            .getBarProcessed().set(definition.getFoo().getBar().map(it -> it.toUpperCase()));
+                    """
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                        property "dir", DirectoryProperty
+                        mapping """
+                            model.getText().set(context.getBuildModel(parent).getBarProcessed().map(bar -> definition.getText().get() + " " + bar));
+                            model.getDir().set(getProjectFeatureLayout().getProjectDirectory().dir(definition.getText().get()));
+                        """
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindToBuildModel()
+                    bindsFeatureTo type.definition.className + ".FooBuildModel"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatAppliesFeatureToNestedBlock << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+                foo {
+                    bar = "bar"
+                    feature {
+                        text = "foo"
+                        fizz {
+                            buzz = "baz"
+                        }
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printFeatureDefinitionConfiguration")
@@ -388,13 +1014,51 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def 'can declare a custom project feature with no build model'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureThatHasNoBuildModel()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    noBuildModel()
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    noBuildModel()
+                    applyActionCode """
+                        TestProjectTypeDefinition.TestProjectTypeModel parentModel = context.getBuildModel(parent);
+                        parentModel.getId().set(definition.getText());
+                    """
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeatureTextProperty << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration")
@@ -406,14 +1070,53 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("feature model class: None")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'can declare a custom project feature with no build model and another feature that binds to its definition'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureThatHasNoBuildModelAndAnotherFeatureThatBindsToItsDefinition()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            def featureWithoutBuildModel = projectFeature("feature") {
+                definition {
+                    property "text", String
+                    noBuildModel()
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    noBuildModel()
+                }
+            }
+            projectFeature("anotherFeature") {
+                definition {
+                    property "text", String
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    buildModel("AnotherFeatureModel") {
+                        property "text", String
+                        mapping """
+                            model.getText().set(parent.getText().map(text -> text + " " + definition.getText().get()));
+                        """
+                    }
+                }
+                plugin {
+                    bindsFeatureTo featureWithoutBuildModel
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -450,14 +1153,35 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("model text = foo bar") // feature is set with value from parent definition
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'sensible error when a project feature attempts to bind to a build model of None'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureThatBindsToNoneBuildModel()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo "BuildModel.None"
+                    bindToBuildModel()
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -466,10 +1190,6 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         buildFile() << """
             testProjectType {
                 id = "test"
-
-                foo {
-                    bar = "baz"
-                }
             }
         """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
@@ -491,14 +1211,53 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     @Requires(UnitTestPreconditions.Jdk23OrEarlier) // Because Kotlin does not support 24 yet and falls back to 23 causing inconsistent JVM targets
     def "can declare and configure a custom project feature in Kotlin that has no build model"() {
-        PluginBuilder pluginBuilder = withKotlinProjectFeaturePluginsThatHasNoBuildModel()
+        PluginBuilder pluginBuilder = testScenario {
+            language KOTLIN
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    noBuildModel()
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    noBuildModel()
+                    bindingStyle REIFIED
+                }
+            }
+        }
         pluginBuilder.applyBuildScriptPlugin("org.jetbrains.kotlin.jvm", "2.2.20")
         pluginBuilder.addBuildScriptContent pluginBuildScriptForKotlin
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeatureTextProperty << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+
+                feature {
+                    text = "foo"
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
@@ -508,59 +1267,46 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("definition text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
-        outputContains("Binding TestProjectTypeDefinition")
-        outputContains("Binding FeatureDefinition")
-    }
-
-    def 'can declare and configure a custom project feature using an action class'() {
-        given:
-        PluginBuilder pluginBuilder = withProjectFeatureThatBindsWithClass()
-        pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
-        pluginBuilder.prepareToExecute()
-
-        settingsFile() << pluginsFromIncludedBuild
-
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
-
-        when:
-        run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
-
-        then:
-        assertThatDeclaredValuesAreSetProperly()
-
-        and:
-        outputContains("Applying ProjectTypeImplPlugin")
-        outputContains("Binding TestProjectTypeDefinition")
-        outputContains("Binding FeatureDefinition")
-    }
-
-    @Requires(UnitTestPreconditions.Jdk23OrEarlier) // Because Kotlin does not support 24 yet and falls back to 23 causing inconsistent JVM targets
-    def "can declare and configure a custom project feature in Kotlin using an action class"() {
-        PluginBuilder pluginBuilder = withKotlinProjectFeaturePluginThatBindsWithClass()
-        pluginBuilder.applyBuildScriptPlugin("org.jetbrains.kotlin.jvm", new KotlinGradlePluginVersions().getLatestStableOrRC())
-        pluginBuilder.addBuildScriptContent pluginBuildScriptForKotlin
-        pluginBuilder.prepareToExecute()
-
-        settingsFile() << pluginsFromIncludedBuild
-
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
-
-        when:
-        run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
-
-        then:
-        assertThatDeclaredValuesAreSetProperly()
-
-        and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'can declare and configure a project feature that binds to multiple types with the same name'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeaturePluginThatBindsToMultipleTargets()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property("foo", "Foo") {
+                        implementsDefinition("FooBuildModel") {
+                            property "barProcessed", String
+                        }
+                        property "bar", String
+                    }
+                    property("bar", "Bar") {
+                        implementsDefinition("BarBuildModel") {
+                            property "bazProcessed", String
+                        }
+                        property "baz", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo type.definition.className + ".Foo"
+                    bindsFeatureTo type.definition.className + ".Bar"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -568,7 +1314,6 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
         buildFile() << """
             testProjectType {
-                id = "test"
                 foo {
                     bar = "foo"
                     feature {
@@ -584,7 +1329,7 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
                         text = "bar"
                         fizz {
                             buzz = "bar-baz"
-                            }
+                        }
                     }
                 }
             }
@@ -605,14 +1350,39 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         outputContains("definition fizz.buzz = bar-baz")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def "can declare and configure a custom feature that targets an element in a NamedDomainObjectContainer<Definition>"() {
         given:
-        PluginBuilder pluginBuilder = withProjectTypeAndFeatureThatBindsToNdocElement()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    ndoc("sources", "Source") {
+                        implementsDefinition("SourceModel") {
+                            property "processedDir", String
+                        }
+                        property "sourceDir", String
+                    }
+                }
+            }
+            projectFeature("sourceFeature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo type.definition.className + ".Source"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -644,7 +1414,34 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def "can declare and configure a custom feature that targets a Definition in a deeply nested named domain object container"() {
         given:
-        PluginBuilder pluginBuilder = withProjectTypeAndFeatureThatBindsToDeeplyNestedNdocElement()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property("group", "Group") {
+                        ndoc("sources", "Source") {
+                            implementsDefinition("SourceModel") {
+                                property "processedDir", String
+                            }
+                            property "sourceDir", String
+                        }
+                    }
+                }
+            }
+            projectFeature("sourceFeature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo type.definition.className + ".Group.Source"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -678,7 +1475,33 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
 
     def "can declare and configure a custom feature that targets a Definition nested deeply within a named domain object container element"() {
         given:
-        PluginBuilder pluginBuilder = withProjectTypeAndFeatureThatBindsToDefinitionNestedInNdoc()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    ndoc("sources", "Source") {
+                        property "sourceDir", String
+                        property("group", "Group") {
+                            implementsDefinition("GroupModel")
+                            property "groupName", String
+                        }
+                    }
+                }
+            }
+            projectFeature("groupFeature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo type.definition.className + ".Source.Group"
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
@@ -708,68 +1531,6 @@ class ProjectFeatureDeclarationIntegrationTest extends AbstractIntegrationSpec i
         then:
         outputContains("definition text = main")
         outputContains("Binding GroupFeatureDefinition")
-    }
-
-    static String getDeclarativeScriptThatConfiguresOnlyTestProjectFeature() {
-        return """
-            testProjectType {
-                id = "test"
-
-                foo {
-                    bar = "baz"
-                }
-
-                feature {
-                    text = "foo"
-                    fizz {
-                        buzz = "baz"
-                    }
-                }
-            }
-        """
-    }
-
-    static String getDeclarativeScriptThatConfiguresOnlyTestProjectFeatureTextProperty() {
-        return """
-            testProjectType {
-                id = "test"
-
-                foo {
-                    bar = "baz"
-                }
-
-                feature {
-                    text = "foo"
-                }
-            }
-        """
-    }
-
-    static String getDeclarativeScriptThatAppliesFeatureToNestedBlock() {
-        return """
-            testProjectType {
-                id = "test"
-                foo {
-                    bar = "bar"
-                    feature {
-                        text = "foo"
-                        fizz {
-                            buzz = "baz"
-                        }
-                    }
-                }
-            }
-        """
-    }
-
-    void assertThatDeclaredValuesAreSetProperly() {
-        outputContains("definition id = test")
-        outputContains("definition foo.bar = baz")
-        outputContains("definition text = foo")
-        outputContains("definition fizz.buzz = baz")
-        outputContains("model id = test")
-        outputContains("model text = foo")
-        outputContains("model dir = ${testDirectory.file("foo").absolutePath}")
     }
 
     void assertDescriptionOrCause(ExecutionFailure failure, String expectedMessage) {

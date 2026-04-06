@@ -16,15 +16,20 @@
 
 package org.gradle.features
 
+import org.gradle.api.Project
+import org.gradle.api.model.ObjectFactory
+import org.gradle.features.registration.TaskRegistrar
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.executer.ExecutionFailure
 import org.gradle.integtests.fixtures.polyglot.PolyglotDslTest
 import org.gradle.integtests.fixtures.polyglot.PolyglotTestFixture
-import org.gradle.features.internal.ProjectTypeFixture
+import org.gradle.features.internal.TestScenarioFixture
 import org.gradle.test.fixtures.dsl.GradleDsl
 
+import static org.gradle.features.internal.builders.DefinitionBuilder.Shape.ABSTRACT_CLASS
+
 @PolyglotDslTest
-class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implements ProjectTypeFixture, PolyglotTestFixture {
+class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implements TestScenarioFixture, PolyglotTestFixture {
     def setup() {
         // enable DCL support to have KTS accessors generated
         propertiesFile << "org.gradle.kotlin.dsl.dcl=true"
@@ -32,26 +37,73 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'can declare and configure a custom project type with an unsafe definition'() {
         given:
-        withUnsafeProjectTypeDefinitionDeclaredUnsafe().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                    shape ABSTRACT_CLASS
+                }
+                plugin {
+                    unsafeDefinition()
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         succeeds(":printTestProjectTypeDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("model id = test")
     }
 
     def 'sensible error when definition is declared safe but is not an interface'() {
         given:
-        withUnsafeProjectTypeDefinitionDeclaredSafe().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                    shape ABSTRACT_CLASS
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -71,11 +123,32 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when definition is declared safe but has an injected service'() {
         given:
-        withSafeProjectTypeAndInjectableDefinition().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                    injectedService "objects", ObjectFactory
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -95,11 +168,32 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when definition is declared safe but has a nested property with an injected service'() {
         given:
-        withSafeProjectTypeAndNestedInjectableDefinition().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        injectedService "objects", ObjectFactory
+                        property "bar", String
+                    }
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -119,11 +213,33 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when definition is declared safe but has multiple properties with an injected service'() {
         given:
-        withSafeProjectTypeAndMultipleInjectableDefinition().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    injectedService "objects", ObjectFactory
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        injectedService "objects", ObjectFactory
+                        property "bar", String
+                    }
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -150,11 +266,34 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when definition is declared safe but inherits an injected service'() {
         given:
-        withSafeProjectTypeAndInheritedInjectableDefinition().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                    parentDefinition {
+                        injectedService "objects", ObjectFactory
+                    }
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -174,11 +313,33 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when definition is declared safe but has several different errors'() {
         given:
-        withPolyUnsafeProjectTypeDefinitionDeclaredSafe().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                    shape ABSTRACT_CLASS
+                    injectedService "objects", ObjectFactory
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -205,29 +366,82 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'can declare and configure a custom project type with an unsafe apply action'() {
         given:
-        withProjectTypeWithUnsafeApplyActionDeclaredUnsafe().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+                plugin {
+                    applyAction {
+                        injectedService "project", Project
+                    }
+                    unsafeApplyAction()
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         run(":printTestProjectTypeDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition id = test")
+        outputContains("definition foo.bar = baz")
+        outputContains("model id = test")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
     }
 
     def 'sensible error when a project type with an unsafe apply action is declared safe'() {
         given:
-        withProjectTypeWithUnsafeApplyActionDeclaredSafe().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+                plugin {
+                    applyAction {
+                        injectedService "project", Project
+                    }
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
@@ -252,22 +466,48 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
 
     def 'sensible error when a project type with an unsafe apply action attempts to use an unknown service'() {
         given:
-        withProjectTypeWithUnsafeApplyActionInjectingUnknownService().prepareToExecute()
+        testScenario {
+            projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        property "bar", String
+                    }
+                }
+                plugin {
+                    applyAction {
+                        injectedService "unknown", TaskRegistrar
+                    }
+                    unsafeApplyAction()
+                }
+            }
+        }.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectType
+        buildFile() << """
+            testProjectType {
+                id = "test"
+
+                foo {
+                    bar = "baz"
+                }
+            }
+        """
 
         when:
         fails(":printTestProjectTypeDefinitionConfiguration")
 
         then:
         failure.assertHasCause(
-            "Project feature 'testProjectType' has an apply action that attempts to inject an unknown service with type 'org.gradle.test.ProjectTypeImplPlugin\$ApplyAction\$UnknownService'.\n" +
+            "Project feature 'testProjectType' has an apply action that attempts to inject an unknown service with type 'org.gradle.test.TestProjectTypeImplPlugin\$ApplyAction\$UnknownService'.\n" +
             "\n" +
-            "Reason: Services of type org.gradle.test.ProjectTypeImplPlugin\$ApplyAction\$UnknownService are not available for injection into project feature apply actions.\n" +
+            "Reason: Services of type org.gradle.test.TestProjectTypeImplPlugin\$ApplyAction\$UnknownService are not available for injection into project feature apply actions.\n" +
             "\n" +
-            "Possible solution: Remove the 'org.gradle.test.ProjectTypeImplPlugin\$ApplyAction\$UnknownService' injection from the apply action."
+            "Possible solution: Remove the 'org.gradle.test.TestProjectTypeImplPlugin\$ApplyAction\$UnknownService' injection from the apply action."
         )
     }
 
@@ -279,21 +519,4 @@ class ProjectTypeSafetyIntegrationTest extends AbstractIntegrationSpec implement
         }
     }
 
-    static String getDeclarativeScriptThatConfiguresOnlyTestProjectType() {
-        return """
-            testProjectType {
-                id = "test"
-
-                foo {
-                    bar = "baz"
-                }
-            }
-        """
-    }
-
-    void assertThatDeclaredValuesAreSetProperly() {
-        outputContains("definition id = test")
-        outputContains("definition foo.bar = baz")
-        outputContains("model id = test")
-    }
 }

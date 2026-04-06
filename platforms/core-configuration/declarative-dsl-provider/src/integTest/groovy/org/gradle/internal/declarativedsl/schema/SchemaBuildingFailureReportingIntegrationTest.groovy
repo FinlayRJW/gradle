@@ -16,18 +16,47 @@
 
 package org.gradle.internal.declarativedsl.schema
 
-import org.gradle.features.internal.ProjectFeatureFixture
+import org.gradle.features.internal.TestScenarioFixture
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.test.fixtures.plugin.PluginBuilder
 
-class SchemaBuildingFailureReportingIntegrationTest extends AbstractIntegrationSpec implements ProjectFeatureFixture {
+class SchemaBuildingFailureReportingIntegrationTest extends AbstractIntegrationSpec implements TestScenarioFixture {
     def setup() {
         enableProblemsApiCheck()
     }
 
     def 'schema building failures are reported in the build output'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeature()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") {
+                definition {
+                    property "id", String
+                    buildModel {
+                        property "id", String
+                    }
+                    property("foo", "Foo") {
+                        implementsDefinition("FooBuildModel") {
+                            property "barProcessed", String
+                        }
+                        property "bar", String
+                    }
+                }
+            }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.prepareToExecute()
 
         def settings = file("settings.gradle.dcl")

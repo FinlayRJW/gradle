@@ -20,43 +20,104 @@ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.executer.ExecutionFailure
 import org.gradle.integtests.fixtures.polyglot.PolyglotDslTest
 import org.gradle.integtests.fixtures.polyglot.PolyglotTestFixture
+import org.gradle.api.Project
+import org.gradle.api.model.ObjectFactory
+import org.gradle.features.registration.TaskRegistrar
 import org.gradle.internal.declarativedsl.DeclarativeTestUtils
-import org.gradle.features.internal.ProjectFeatureFixture
+import org.gradle.features.internal.TestScenarioFixture
 import org.gradle.test.fixtures.dsl.GradleDsl
 import org.gradle.test.fixtures.plugin.PluginBuilder
 
+import static org.gradle.features.internal.builders.DefinitionBuilder.Shape.ABSTRACT_CLASS
+
 @PolyglotDslTest
-class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implements ProjectFeatureFixture, PolyglotTestFixture {
+class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implements TestScenarioFixture, PolyglotTestFixture {
     def setup() {
         file("gradle.properties") << "org.gradle.kotlin.dsl.dcl=true"
     }
 
     def 'can declare and configure a custom project feature with an unsafe definition'() {
         given:
-        def pluginBuilder = withUnsafeProjectFeatureDefinitionDeclaredUnsafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    shape ABSTRACT_CLASS
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    unsafeDefinition()
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyUnsafeTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         succeeds(":printProjectTypeDefinitionConfiguration", ":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition text = foo")
+        outputContains("model text = foo")
     }
 
     def 'sensible error when definition is declared safe but is not an interface'() {
         given:
-        def pluginBuilder = withUnsafeProjectFeatureDefinitionDeclaredSafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    shape ABSTRACT_CLASS
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -76,13 +137,40 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when definition is declared safe but has an injected service'() {
         given:
-        def pluginBuilder = withProjectFeatureAndInjectableDefinitionDeclaredSafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    injectedService "objects", ObjectFactory
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -102,13 +190,40 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when definition is declared safe but has a nested property with an injected service'() {
         given:
-        def pluginBuilder = withProjectFeatureAndNestedInjectableDefinitionDeclaredSafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        injectedService "objects", ObjectFactory
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -128,13 +243,41 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when definition is declared safe but has multiple properties with an injected service'() {
         given:
-        def pluginBuilder = withProjectFeatureAndMultipleInjectableDefinition()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    injectedService "objects", ObjectFactory
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        injectedService "objects", ObjectFactory
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -161,13 +304,42 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when definition is declared safe but inherits an injected service'() {
         given:
-        def pluginBuilder = withProjectFeatureAndInjectableParentDefinitionDeclaredSafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    parentDefinition {
+                        injectedService "objects", ObjectFactory
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -187,13 +359,41 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when definition is declared safe but has several different errors'() {
         given:
-        def pluginBuilder = withPolyUnsafeProjectFeatureDefinitionDeclaredSafe()
+        def pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                    shape ABSTRACT_CLASS
+                    injectedService "objects", ObjectFactory
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent(pluginBuildScriptForJava)
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printFeatureDefinitionConfiguration")
@@ -220,35 +420,95 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'can declare and configure a custom project feature with an unsafe apply action'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureWithUnsafeApplyActionDeclaredUnsafe()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    applyAction {
+                        injectedService "project", Project
+                    }
+                    unsafeApplyAction()
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         run(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
-        assertThatDeclaredValuesAreSetProperly()
+        outputContains("definition text = foo")
+        outputContains("model text = foo")
 
         and:
-        outputContains("Applying ProjectTypeImplPlugin")
+        outputContains("Applying TestProjectTypeImplPlugin")
         outputContains("Binding TestProjectTypeDefinition")
         outputContains("Binding FeatureDefinition")
     }
 
     def 'sensible error when project feature with an unsafe apply action is declared safe'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureWithUnsafeApplyActionDeclaredSafe()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    applyAction {
+                        injectedService "project", Project
+                    }
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
@@ -273,70 +533,55 @@ class ProjectFeatureSafetyIntegrationTest extends AbstractIntegrationSpec implem
 
     def 'sensible error when project feature with an unsafe apply action attempts to use an unknown service'() {
         given:
-        PluginBuilder pluginBuilder = withProjectFeatureWithUnsafeApplyActionInjectingUnknownService()
+        PluginBuilder pluginBuilder = testScenario {
+            def type = projectType("testProjectType") { }
+            projectFeature("feature") {
+                definition {
+                    property "text", String
+                    buildModel {
+                        property "text", String
+                    }
+                    property("fizz", "Fizz") {
+                        property "buzz", String
+                    }
+                }
+                plugin {
+                    bindsFeatureTo(type)
+                    applyAction {
+                        injectedService "unknown", TaskRegistrar
+                    }
+                    unsafeApplyAction()
+                }
+            }
+        }
         pluginBuilder.addBuildScriptContent pluginBuildScriptForJava
         pluginBuilder.prepareToExecute()
 
         settingsFile() << pluginsFromIncludedBuild
 
-        buildFile() << declarativeScriptThatConfiguresOnlyTestProjectFeature << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
+        buildFile() << """
+            testProjectType {
+                feature {
+                    text = "foo"
+
+                    fizz {
+                        buzz = "baz"
+                    }
+                }
+            }
+        """ << DeclarativeTestUtils.nonDeclarativeSuffixForKotlinDsl
 
         when:
         fails(":printProjectTypeDefinitionConfiguration",":printFeatureDefinitionConfiguration")
 
         then:
         assertUnsafeApplyActionHasDescriptionOrCause(failure,
-            "Project feature 'feature' has an apply action that attempts to inject an unknown service with type 'org.gradle.test.ProjectFeatureImplPlugin\$ApplyAction\$UnknownService'.\n" +
+            "Project feature 'feature' has an apply action that attempts to inject an unknown service with type 'org.gradle.test.FeatureImplPlugin\$ApplyAction\$UnknownService'.\n" +
             "\n" +
-            "Reason: Services of type org.gradle.test.ProjectFeatureImplPlugin\$ApplyAction\$UnknownService are not available for injection into project feature apply actions.\n" +
+            "Reason: Services of type org.gradle.test.FeatureImplPlugin\$ApplyAction\$UnknownService are not available for injection into project feature apply actions.\n" +
             "\n" +
-            "Possible solution: Remove the 'org.gradle.test.ProjectFeatureImplPlugin\$ApplyAction\$UnknownService' injection from the apply action."
+            "Possible solution: Remove the 'org.gradle.test.FeatureImplPlugin\$ApplyAction\$UnknownService' injection from the apply action."
         )
-    }
-
-    static String getDeclarativeScriptThatConfiguresOnlyTestProjectFeature() {
-        return """
-            testProjectType {
-                id = "test"
-
-                foo {
-                    bar = "baz"
-                }
-
-                feature {
-                    text = "foo"
-
-                    fizz {
-                        buzz = "baz"
-                    }
-                }
-            }
-        """
-    }
-
-    static String getDeclarativeScriptThatConfiguresOnlyUnsafeTestProjectFeature() {
-        return """
-            testProjectType {
-                id = "test"
-
-                foo {
-                    bar = "baz"
-                }
-
-                feature {
-                    text = "foo"
-
-                    fizz {
-                        buzz = "baz"
-                    }
-                }
-            }
-        """
-    }
-
-    void assertThatDeclaredValuesAreSetProperly() {
-        outputContains("definition text = foo")
-        outputContains("model text = foo")
     }
 
     private String getPluginBuildScriptForJava() {
