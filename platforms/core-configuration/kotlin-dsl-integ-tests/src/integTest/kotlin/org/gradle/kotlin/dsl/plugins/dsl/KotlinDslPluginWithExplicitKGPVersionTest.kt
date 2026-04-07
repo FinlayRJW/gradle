@@ -22,6 +22,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import org.gradle.integtests.fixtures.RepoScriptBlockUtil
 import org.gradle.integtests.fixtures.versions.KotlinGradlePluginVersions
 import org.gradle.kotlin.dsl.embeddedKotlinVersion
 import org.gradle.kotlin.dsl.fixtures.AbstractKotlinIntegrationTest
@@ -30,11 +31,17 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import java.io.Closeable
+import java.net.HttpURLConnection.HTTP_MOVED_TEMP
+import java.net.HttpURLConnection.HTTP_NOT_FOUND
+import java.net.HttpURLConnection.HTTP_OK
 
 
 /**
  * Tests that the `kotlin-dsl` plugin can be applied alongside an explicit, different version
  * of the `org.jetbrains.kotlin.jvm` plugin.
+ *
+ * We aim to test with both an older and a newer version of KGP, than the Kotlin version
+ * currently embedded in Gradle, because we have observed that they can behave differently.
  *
  * When no real newer Kotlin version is available, a synthetic version is used.
  * A [SyntheticKgpRepo] serves the synthetic version's metadata by rewriting
@@ -154,7 +161,7 @@ class KotlinDslPluginWithExplicitKGPVersionTest(
     class SyntheticKgpRepo(
         private val syntheticVersion: String,
         private val realVersion: String,
-        private val upstreamBaseUrl: String = "https://plugins.gradle.org/m2"
+        private val upstreamBaseUrl: String = RepoScriptBlockUtil.gradlePluginRepositoryMirrorUrl()
     ) : Closeable {
 
         private val httpClient = OkHttpClient()
@@ -166,25 +173,27 @@ class KotlinDslPluginWithExplicitKGPVersionTest(
         fun start() {
             server.dispatcher = object : Dispatcher() {
                 override fun dispatch(request: RecordedRequest): MockResponse {
-                    val path = request.path ?: return MockResponse().setResponseCode(404)
+                    val path = request.path ?: return MockResponse().setResponseCode(HTTP_NOT_FOUND)
                     if (!path.contains(syntheticVersion)) {
-                        return MockResponse().setResponseCode(404)
+                        return MockResponse().setResponseCode(HTTP_NOT_FOUND)
                     }
 
                     val upstreamPath = path.replace(syntheticVersion, realVersion)
                     val upstreamUrl = "$upstreamBaseUrl$upstreamPath"
                     val rewriter = selectRewriter(path) ?: return MockResponse()
-                        .setResponseCode(302)
+                        .setResponseCode(HTTP_MOVED_TEMP)
                         .setHeader("Location", upstreamUrl)
 
                     return try {
-                        val responseBytes = fetchFromUpstream(upstreamUrl)
-                        val rewritten = rewriter(String(responseBytes)).toByteArray()
-                        MockResponse()
-                            .setResponseCode(200)
-                            .setBody(okio.Buffer().write(rewritten))
+                        val rewritten = rewriter(String(fetchFromUpstream(upstreamUrl)))
+                        val base = MockResponse().setResponseCode(HTTP_OK)
+                        if (request.method == "HEAD") {
+                            base.setHeader("Content-Length", rewritten.toByteArray(Charsets.UTF_8).size.toString())
+                        } else {
+                            base.setBody(rewritten)
+                        }
                     } catch (_: Exception) {
-                        MockResponse().setResponseCode(404)
+                        MockResponse().setResponseCode(HTTP_NOT_FOUND)
                     }
                 }
             }
